@@ -1,0 +1,128 @@
+# docker-compose.yml
+# Production-ready compose for single VPS
+# Stack: FastAPI + Next.js + PostgreSQL + Redis + Caddy + MinIO (S3)
+
+version: "3.8"
+
+services:
+  # ── Reverse Proxy & HTTPS ─────────────────────────────────────
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: focusflow-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - focusflow-net
+
+  # ── Frontend: Next.js 14 ──────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: focusflow-frontend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NEXT_PUBLIC_API_URL=/api
+      - NEXT_PUBLIC_S3_BUCKET=${S3_BUCKET}
+      - NEXT_PUBLIC_S3_REGION=${S3_REGION}
+    depends_on:
+      - backend
+    networks:
+      - focusflow-net
+
+  # ── Backend: FastAPI + APScheduler ────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: focusflow-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+      - REDIS_URL=redis://redis:6379/0
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - focusflow-net
+
+  # ── Database: PostgreSQL 16 ───────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: focusflow-postgres
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./backups:/backups  # для pg_dump
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - focusflow-net
+
+  # ── Cache / Optional Celery: Redis ────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: focusflow-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - focusflow-net
+
+  # ── S3 Storage (local dev): MinIO ─────────────────────────────
+  # В продакшене замените на AWS S3 / Cloudflare R2, убрав этот сервис
+  minio:
+    image: minio/minio:latest
+    container_name: focusflow-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"      # S3 API
+      - "9001:9001"      # Web UI (опционально)
+    environment:
+      - MINIO_ROOT_USER=${S3_ACCESS_KEY}
+      - MINIO_ROOT_PASSWORD=${S3_SECRET_KEY}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - focusflow-net
+
+volumes:
+  caddy_data:
+  caddy_config:
+  pg_data:
+  redis_data:
+  minio_data:
+
+networks:
+  focusflow-net:
+    driver: bridge
