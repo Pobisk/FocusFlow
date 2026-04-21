@@ -1,0 +1,38 @@
+# Caddyfile
+# Автоматический HTTPS, reverse proxy для frontend/backend
+
+{
+    email ${LETSENCRYPT_EMAIL:-admin@yourdomain.com}
+    on_demand_tls {
+        ask http://localhost:8000/api/health
+    }
+}
+
+# Основной домен
+{$DOMAIN_NAME:localhost} {
+    # API запросы → backend
+    reverse_proxy /api/* backend:8000
+
+    # S3 pre-signed URLs (если используется локальный MinIO в dev)
+    reverse_proxy /s3/* minio:9000
+
+    # Health check для Caddy on-demand TLS
+    handle /api/health {
+        reverse_proxy backend:8000
+    }
+
+    # Всё остальное → Next.js frontend
+    reverse_proxy frontend:3000
+
+    # Логирование (опционально)
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+}
+
+# Локальная разработка без HTTPS (опционально)
+:80 {
+    reverse_proxy /api/* backend:8000
+    reverse_proxy frontend:3000
+}
