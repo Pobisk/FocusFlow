@@ -43,4 +43,10 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 
 EXPOSE 8000
 
+# ... после копирования кода в runtime stage ...
+
+# Optional: Run DB migrations on container start
+# Раскомментируйте, если хотите авто-миграции (осторожно в production!)
+# RUN python -c "from src.db.init_db import run_alembic_upgrade; run_alembic_upgrade()"
+
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
