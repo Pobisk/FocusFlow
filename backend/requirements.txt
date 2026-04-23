@@ -1,0 +1,29 @@
+# backend/requirements.txt
+# Автогенерированный список зависимостей для Docker
+
+# Core
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+
+# Database & ORM
+sqlmodel==0.0.21
+alembic==1.13.2
+asyncpg==0.29.0
+psycopg2-binary==2.9.9
+
+# Settings & Validation
+pydantic==2.9.2
+pydantic-settings==2.6.1
+
+# Scheduler
+apscheduler==3.10.4
+
+# S3 Storage
+boto3==1.35.36
+
+# Utilities
+python-dotenv==1.0.1
+structlog==24.4.0
+
+# Build backend (required for pip install .)
+hatchling==1.21.0
