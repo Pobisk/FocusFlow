@@ -65,3 +65,6 @@ include = ["src"]
 asyncio_mode = "auto"
 testpaths = ["src/tests"]
 pythonpath = ["src"]
+
+[project.scripts]
+focusflow-db = "src.db.init_db:main"
