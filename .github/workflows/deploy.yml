@@ -34,7 +34,7 @@ jobs:
             echo "🔄 Starting deployment..."
             
             # 🔐 Авторизация в GHCR
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${OWNER}" --password-stdin 2>/dev/null || true
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin 2>/dev/null || true
             
             # 📦 Всегда pull — Docker сам проверит, нужно ли скачивать
             echo "📦 Pulling backend:latest..."
