@@ -8,6 +8,7 @@ services:
   # ── Reverse Proxy & HTTPS ─────────────────────────────────────
   caddy:
     image: caddy:2.8-alpine
+    pull_policy: if_not_present  # не тянуть каждый раз
     container_name: focusflow-caddy
     restart: unless-stopped
     ports:
@@ -68,6 +69,7 @@ services:
   # ── Database: PostgreSQL 16 ───────────────────────────────────
   postgres:
     image: postgres:16-alpine
+    pull_policy: if_not_present  # не тянуть каждый раз
     container_name: focusflow-postgres
     restart: unless-stopped
     env_file:
@@ -90,6 +92,7 @@ services:
   # ── Cache / Optional Celery: Redis ────────────────────────────
   redis:
     image: redis:7-alpine
+    pull_policy: if_not_present  # не тянуть каждый раз
     container_name: focusflow-redis
     restart: unless-stopped
     command: redis-server --appendonly yes
@@ -102,6 +105,7 @@ services:
   # В продакшене замените на AWS S3 / Cloudflare R2, убрав этот сервис
   minio:
     image: minio/minio:latest
+    pull_policy: if_not_present  # не тянуть каждый раз
     container_name: focusflow-minio
     restart: unless-stopped
     ports:
