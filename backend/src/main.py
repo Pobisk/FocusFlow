@@ -18,7 +18,7 @@ structlog.configure(
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.JSONRenderer(),
     ],
-    wrapper_class=structlog.make_filtering_bound_logger(settings.log_level),
+    wrapper_class=structlog.make_filtering_bound_logger("info"),
 )
 
 logger = structlog.get_logger(__name__)
