@@ -11,6 +11,33 @@ from db.session import async_engine, sync_engine
 from models.base import BaseModel
 from api.v1.endpoints import health
 
+def _get_structlog_level(level) -> int:
+    """
+    Конвертирует уровень лога в числовой формат для structlog 24.x
+    Поддерживает: строки ('info', 'INFO'), числа (20), и невалидные значения
+    """
+    # Таблица соответствия: строка → число
+    LEVEL_MAP = {
+        'critical': 50, 'exception': 50,
+        'error': 40,
+        'warning': 30, 'warn': 30,
+        'info': 20,
+        'debug': 10,
+        'notset': 0,
+    }
+    
+    # Если уже число — возвращаем как есть
+    if isinstance(level, (int, float)):
+        return int(level)
+    
+    # Если строка — конвертируем
+    if isinstance(level, str):
+        cleaned = level.strip().lower()
+        return LEVEL_MAP.get(cleaned, 20)  # fallback на INFO
+    
+    # По умолчанию
+    return 20
+    
 # Configure structured logging
 structlog.configure(
     processors=[
@@ -18,7 +45,7 @@ structlog.configure(
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.JSONRenderer(),
     ],
-    wrapper_class=structlog.make_filtering_bound_logger(20),
+    wrapper_class=structlog.make_filtering_bound_logger(_get_structlog_level(settings.log_level)),
 )
 
 logger = structlog.get_logger(__name__)
