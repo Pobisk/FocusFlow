@@ -2,12 +2,11 @@
 name: Deploy to VPS
 
 on:
-  workflow_dispatch: # ручной запуск
+  workflow_dispatch:
 
 env:
-  # 🔥 ВАЖНО: используем hardcoded lowercase owner для GHCR
   REGISTRY: ghcr.io
-  OWNER: pobisk  # ← lowercase! GitHub owner в путях к образам должен быть в нижнем регистре
+  OWNER: pobisk
   BACKEND_IMAGE: ghcr.io/pobisk/focusflow-backend
   FRONTEND_IMAGE: ghcr.io/pobisk/focusflow-frontend
 
@@ -19,7 +18,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── Deploy via SSH ──────────────────────────────
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -28,7 +26,6 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          # Передаём переменные в окружение скрипта
           envs: BACKEND_IMAGE,FRONTEND_IMAGE
           script: |
             set -e
@@ -37,50 +34,26 @@ jobs:
             echo "🔄 Starting deployment..."
             
             # 🔐 Авторизация в GHCR
-            # ⚠️ Предупреждение о config.json — это нормально для VPS, см. ниже про решение
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin 2>/dev/null || true
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${OWNER}" --password-stdin 2>/dev/null || true
             
-            # 📦 Умная загрузка backend (проверяем по digest, чтобы не тянуть лишний раз)
-            echo "📦 Checking backend image..."
-            if docker inspect "${BACKEND_IMAGE}:latest" &>/dev/null; then
-              LOCAL_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${BACKEND_IMAGE}:latest" 2>/dev/null || echo "")
-              if [ -n "$LOCAL_DIGEST" ]; then
-                echo "✅ Backend image already present: ${LOCAL_DIGEST:0:30}..."
-              else
-                echo "⬇️ Pulling backend:latest..."
-                docker pull "${BACKEND_IMAGE}:latest"
-              fi
-            else
-              echo "⬇️ Pulling backend:latest..."
-              docker pull "${BACKEND_IMAGE}:latest"
-            fi
+            # 📦 Всегда pull — Docker сам проверит, нужно ли скачивать
+            echo "📦 Pulling backend:latest..."
+            docker pull "${BACKEND_IMAGE}:latest"
             
-            # 📦 Умная загрузка frontend
-            echo "📦 Checking frontend image..."
-            if docker inspect "${FRONTEND_IMAGE}:latest" &>/dev/null; then
-              LOCAL_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${FRONTEND_IMAGE}:latest" 2>/dev/null || echo "")
-              if [ -n "$LOCAL_DIGEST" ]; then
-                echo "✅ Frontend image already present: ${LOCAL_DIGEST:0:30}..."
-              else
-                echo "⬇️ Pulling frontend:latest..."
-                docker pull "${FRONTEND_IMAGE}:latest"
-              fi
-            else
-              echo "⬇️ Pulling frontend:latest..."
-              docker pull "${FRONTEND_IMAGE}:latest"
-            fi
+            echo "📦 Pulling frontend:latest..."
+            docker pull "${FRONTEND_IMAGE}:latest"
             
-            # 🚀 Запускаем контейнеры — ❌ БЕЗ --build!
+            # 🚀 Запускаем контейнеры — БЕЗ --build!
             echo "🚀 Starting services..."
             docker compose up -d --remove-orphans
             
-            # 🧹 Очистка: удаляем только dangling образы, не трогаем текущие
+            # 🧹 Очистка: удаляем только dangling образы
             echo "🧹 Cleaning dangling images..."
             docker image prune -f
             
-            # ✅ Health check
+            # ✅ Health check с увеличенным временем ожидания
             echo "✅ Checking health..."
-            sleep 15
+            sleep 25
             if curl -f http://localhost:8000/api/health &>/dev/null; then
               echo "🎉 Deployment successful!"
             else
