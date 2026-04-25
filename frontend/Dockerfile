@@ -2,15 +2,14 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Копируем только package-файлы для кэширования зависимостей
 COPY package*.json ./
 
-RUN npm ci --only=production
+# 👇 Используем современный флаг --omit=dev
+# 👇 Если нет package-lock.json, npm ci упадёт — поэтому лучше npm install для минимального старта
+RUN npm install --omit=dev
 
-# Копируем исходники
 COPY . .
 
-# Собираем приложение
 RUN npm run build
 
 EXPOSE 3000
