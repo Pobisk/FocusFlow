@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     # ── Application ──────────────────────────────────
     environment: Literal["development", "staging", "production"] = "development"
-    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    log_level: Literal["debug", "info", "warning", "error"] = "info"
     secret_key: str = Field(..., min_length=32)
 
     # ── Database ─────────────────────────────────────
