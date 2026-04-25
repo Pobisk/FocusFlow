@@ -27,9 +27,10 @@ services:
 
   # ── Frontend: Next.js 14 ──────────────────────────────────────
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    # build:                    # ❌ УДАЛЯЕМ сборку
+    #   context: ./frontend
+    #   dockerfile: Dockerfile
+    image: ${FRONTEND_IMAGE:-ghcr.io/pobisk/focusflow-frontend:latest} # ✅ Образ из реестра
     container_name: focusflow-frontend
     restart: unless-stopped
     env_file:
@@ -42,12 +43,20 @@ services:
       - backend
     networks:
       - focusflow-net
+    # 🔋 Оптимизация под 1 ГБ RAM
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   # ── Backend: FastAPI + APScheduler ────────────────────────────
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    # build:                    # ❌ УДАЛЯЕМ сборку
+    #   context: ./backend
+    #   dockerfile: Dockerfile
+    image: ${BACKEND_IMAGE:-ghcr.io/pobisk/focusflow-backend:latest} # ✅ Образ из реестра
     container_name: focusflow-backend
     restart: unless-stopped
     env_file:
@@ -65,6 +74,13 @@ services:
         condition: service_started
     networks:
       - focusflow-net
+    # 🔋 Оптимизация под 1 ГБ RAM
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   # ── Database: PostgreSQL 16 ───────────────────────────────────
   postgres:
