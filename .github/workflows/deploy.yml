@@ -2,82 +2,77 @@
 name: Deploy to VPS
 
 on:
-#  push:
-#    branches: [main]
-  workflow_dispatch:  # ручной запуск
+  workflow_dispatch:
+  # workflow_run:
+  #   workflows: ["Build & Push Backend Image", "Build & Push Frontend Image"]
+  #   types: [completed]
+  #   branches: [main]
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  OWNER: ${{ github.repository_owner }}
+  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/focusflow-backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/focusflow-frontend
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     environment: production
+    # depends_on:
+    #   - build-backend
+    #   - build-frontend
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # ── Build & Push Backend ────────────────────────
-      - name: Build backend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          push: false
-          load: true
-          tags: focusflow-backend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # ── Build & Push Frontend ───────────────────────
-      - name: Build frontend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          push: false
-          load: true
-          tags: focusflow-frontend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # ── Deploy via SSH ──────────────────────────────
+      # ── Deploy via SSH (только pull, без сборки!) ──────────────────────
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          command_timeout: 30m  # 👈 Увеличьте до 30 минут
+          command_timeout: 20m
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
+          envs: BACKEND_IMAGE,FRONTEND_IMAGE,REGISTRY,OWNER
           script: |
             set -e
-            echo "🔄 Pulling latest code..."
             cd /opt/focusflow
-            git pull origin main
             
-            echo "🔐 Loading environment variables..."
-            # .env не коммитится, должен быть на сервере
-            if [ ! -f .env ]; then
-              echo "❌ .env not found on server! Create it first."
-              exit 1
+            echo "🔐 Logging in to GHCR..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${OWNER}" --password-stdin
+            
+            # 📦 Умная загрузка backend (пропускаем если образ не изменился)
+            echo "📦 Checking backend image..."
+            REMOTE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${BACKEND_IMAGE}:latest" 2>/dev/null || echo "")
+            if [ -n "${REMOTE_DIGEST}" ]; then
+              echo "✅ Backend image already present: ${REMOTE_DIGEST}"
+            else
+              echo "⬇️ Pulling backend:latest..."
+              docker pull "${BACKEND_IMAGE}:latest"
             fi
             
-            echo "🐳 Building and starting containers..."
-            docker compose pull
-            docker compose up -d --build --remove-orphans
+            # 📦 Умная загрузка frontend
+            echo "📦 Checking frontend image..."
+            REMOTE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${FRONTEND_IMAGE}:latest" 2>/dev/null || echo "")
+            if [ -n "${REMOTE_DIGEST}" ]; then
+              echo "✅ Frontend image already present: ${REMOTE_DIGEST}"
+            else
+              echo "⬇️ Pulling frontend:latest..."
+              docker pull "${FRONTEND_IMAGE}:latest"
+            fi
             
-            echo "🧹 Cleaning up..."
-            docker system prune -af --volumes
+            # 🚀 Запускаем контейнеры (БЕЗ --build!)
+            echo "🚀 Starting services..."
+            docker compose up -d --remove-orphans
             
-            echo "✅ Deployment complete. Checking health..."
-            sleep 10
-            curl -f http://localhost:8000/api/health || exit 1
-            echo "🎉 All services healthy!"
-
-      # ── Notify (optional) ───────────────────────────
-      - name: Notify on success
-        if: success()
-        run: echo "✅ Deployed ${{ github.sha }} to production"
+            # 🧹 Очистка старых образов (но не текущих!)
+            echo "🧹 Cleaning dangling images..."
+            docker image prune -f
+            
+            # ✅ Health check
+            echo "✅ Checking health..."
+            sleep 15
+            curl -f http://localhost:8000/api/health || { echo "❌ Backend unhealthy"; exit 1; }
+            echo "🎉 Deployment successful!"
