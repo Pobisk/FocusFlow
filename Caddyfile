@@ -2,7 +2,7 @@
 # Автоматический HTTPS, reverse proxy для frontend/backend
 
 {
-    email ${LETSENCRYPT_EMAIL:-admin@yourdomain.com}
+    email ${LETSENCRYPT_EMAIL:-admin@focusflowbox.ru}
     on_demand_tls {
         ask http://localhost:8000/api/health
     }
