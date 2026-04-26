@@ -4,7 +4,7 @@
 {
     email ${LETSENCRYPT_EMAIL:-admin@focusflowbox.ru}
     on_demand_tls {
-        ask http://localhost:8000/api/health
+        ask http://backend:8000/api/health
     }
 
     # 🔐 Security headers
