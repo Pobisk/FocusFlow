@@ -11,6 +11,9 @@ services:
     pull_policy: if_not_present  # не тянуть каждый раз
     container_name: focusflow-caddy
     restart: unless-stopped
+    environment:
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+      - DOMAIN_NAME=${DOMAIN_NAME}
     ports:
       - "80:80"
       - "443:443"
