@@ -2,7 +2,7 @@
 # Автоматический HTTPS, reverse proxy для frontend/backend
 
 {
-    email ${LETSENCRYPT_EMAIL}
+    email pobiskwork@mail.ru
     on_demand_tls {
         ask http://backend:8000/api/health
     }
