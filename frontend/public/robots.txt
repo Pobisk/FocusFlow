@@ -1,0 +1,11 @@
+# Разрешаем индексацию всем поисковым роботам и сканерам фильтров
+User-agent: *
+Allow: /
+
+# Указываем главную страницу как каноническую
+Sitemap: https://focusflowbox.ru/sitemap.xml
+
+# Запрещаем сканирование служебных путей (если появятся)
+Disallow: /api/
+Disallow: /_next/
+Disallow: /static/
