@@ -97,6 +97,10 @@ services:
     container_name: focusflow-postgres
     restart: unless-stopped
     shm_size: 256m  # 🔥 Важно для производительности
+
+    ports:
+      - "127.0.0.1:5432:5432"
+      
     env_file:
       - .env
     environment:
