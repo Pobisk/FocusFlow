@@ -1,6 +1,6 @@
 #!/bin/bash
 #===============================================================================
-# FocusFlow — PostgreSQL Backup Script
+# FocusFlow — PostgreSQL Backup Script (FIXED)
 # Запуск: ./backup.sh
 # Cron: 0 3 * * * /path/to/backup.sh >> /var/log/focusflow-backup.log 2>&1
 #===============================================================================
@@ -33,36 +33,9 @@ if ! docker ps --format '{{.Names}}' | grep -q "^focusflow-postgres$"; then
     exit 1
 fi
 
-# Создаём папку бэкапов, если нет
 mkdir -p "${BACKUP_DIR}"
 
 # ── Бэкап ────────────────────────────────────────────────────────────────────
 echo "📦 [$(date '+%Y-%m-%d %H:%M:%S')] Начало бэкапа: ${BACKUP_FILE}"
 
-docker exec focusflow-postgres pg_dump \
-    -U "${DB_USER}" \
-    -d "${DB_NAME}" \
-    -F c \          # custom format (сжатый, поддерживает параллельное восстановление)
-    -Z 6 \          # уровень сжатия (0-9)
-    --no-owner \    # не восстанавливать владельца (удобно при миграции)
-    --no-acl \      # не восстанавливать права доступа
-    -f "/backups/${BACKUP_FILE}"
-
-# Проверка, что файл создан и не пустой
-if [[ ! -s "${BACKUP_DIR}/${BACKUP_FILE}" ]]; then
-    echo "❌ Ошибка: файл бэкапа пустой или не создан"
-    exit 1
-fi
-
-BACKUP_SIZE=$(du -h "${BACKUP_DIR}/${BACKUP_FILE}" | cut -f1)
-echo "✅ Бэкап создан: ${BACKUP_FILE} (${BACKUP_SIZE})"
-
-# ── Ротация: удаляем старые бэкапы ───────────────────────────────────────────
-echo "🗑 Удаление бэкапов старше ${RETENTION_DAYS} дней..."
-find "${BACKUP_DIR}" -name "focusflow_*.dump" -type f -mtime +${RETENTION_DAYS} -delete
-
-# Показать список оставшихся бэкапов
-echo "📋 Текущие бэкапы:"
-ls -lh "${BACKUP_DIR}"/focusflow_*.dump 2>/dev/null || echo "   (нет бэкапов)"
-
-echo "✨ [$(date '+%Y-%m-%d %H:%M:%S')] Бэкап завершён успешно"
+# Формат -Fc: сжатый custom-format, поддерживает параллельное восстановление
