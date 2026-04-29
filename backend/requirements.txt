@@ -11,7 +11,7 @@ alembic==1.13.2
 asyncpg==0.29.0
 psycopg2-binary==2.9.9
 # ← Генерация UUID v7
-uuid-extensions==1.2.0
+uuid6==2024.7.10
 
 # Settings & Validation
 pydantic==2.9.2
