@@ -10,6 +10,7 @@ sqlmodel==0.0.21
 alembic==1.13.2
 asyncpg==0.29.0
 psycopg2-binary==2.9.9
+uuid-extensions==1.2.0  # ← Генерация UUID v7
 
 # Settings & Validation
 pydantic==2.9.2
