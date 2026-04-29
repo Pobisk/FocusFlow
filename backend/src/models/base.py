@@ -2,7 +2,7 @@
 from sqlmodel import Field, SQLModel
 from uuid import UUID
 from datetime import datetime, timezone
-from uuid_extensions import uuid7  # ← Импорт UUID v7
+from uuid6 import uuid7
 
 
 class BaseModel(SQLModel):
