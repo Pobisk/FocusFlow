@@ -49,38 +49,40 @@ Inheritance: Always inherit from `BaseModel`
 Package: uuid6==2024.7.10
 Import: from uuid6 import uuid7
 Migration Type: sa.Uuid() (NEVER sa.String())
-'''
+```
 
 #### ✅ DO: Create Model
-  ```python
-  # backend/src/models/your_model.py
-  from models.base import BaseModel  # ← Provides: id (UUID v7), created_at, updated_at
-  from sqlmodel import Field
-  from uuid import UUID
+```python
+# backend/src/models/your_model.py
+from models.base import BaseModel  # ← Provides: id (UUID v7), created_at, updated_at
+from sqlmodel import Field
+from uuid import UUID
 
-  class YourModel(BaseModel, table=True):  # ← table=True is required
-      # ✅ id field is inherited - DO NOT redeclare it
-      name: str = Field(max_length=100, index=True)
-      owner_id: UUID = Field(foreign_key="users.id", index=True)  # ← Foreign keys also use UUID
+class YourModel(BaseModel, table=True):  # ← table=True is required
+    # ✅ id field is inherited - DO NOT redeclare it
+    name: str = Field(max_length=100, index=True)
+    owner_id: UUID = Field(foreign_key="users.id", index=True)  # ← Foreign keys also use UUID
+```
 
 #### ✅ DO: Migration File
-  ```Python
-  # alembic/versions/xxx_create_your_model.py
-  import sqlalchemy as sa
-  from sqlalchemy.dialects.postgresql import UUID  # ← For clarity
+```python
+# alembic/versions/xxx_create_your_model.py
+import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import UUID  # ← For clarity
 
-  def upgrade():
-      op.create_table(
-          "your_model",
-          sa.Column("id", sa.Uuid(), nullable=False),  # ✅ CORRECT: 16 bytes, native type
-          sa.Column("name", sa.String(length=100), nullable=False),
-          sa.Column("owner_id", sa.Uuid(), nullable=False),  # ✅ Foreign key also UUID
-          sa.PrimaryKeyConstraint("id"),
-          sa.ForeignKeyConstraint(["owner_id"], ["users.id"], ondelete="CASCADE"),
-      )
+def upgrade():
+    op.create_table(
+        "your_model",
+        sa.Column("id", sa.Uuid(), nullable=False),  # ✅ CORRECT: 16 bytes, native type
+        sa.Column("name", sa.String(length=100), nullable=False),
+        sa.Column("owner_id", sa.Uuid(), nullable=False),  # ✅ Foreign key also UUID
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(["owner_id"], ["users.id"], ondelete="CASCADE"),
+    )
+```
 
 #### ❌ DON'T: Common Mistakes
-```Python
+```python
 # ❌ Never declare id manually:
 class YourModel(BaseModel, table=True):
     id: UUID = Field(...)  # ← WRONG: already in BaseModel
@@ -93,6 +95,7 @@ sa.Column("id", sa.String(length=36))  # ← WRONG: 36 bytes, slow indexes
 
 # ❌ Never forget table=True:
 class YourModel(BaseModel):  # ← WRONG: missing table=True → not registered in DB
+```
 
 ### 📅 Работа с датами и временем (упрощённый подход)
 
