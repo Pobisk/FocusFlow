@@ -43,12 +43,13 @@
 ### ⚡ UUID Rules (AI Guidelines)
 
 #### 🎯 Core Rules
-  ```yaml
-  Primary Key: UUID v7 (never int, never string)
-  Inheritance: Always inherit from `BaseModel`
-  Package: uuid6==2024.7.10
-  Import: from uuid6 import uuid7
-  Migration Type: sa.Uuid() (NEVER sa.String())
+```yaml
+Primary Key: UUID v7 (never int, never string)
+Inheritance: Always inherit from `BaseModel`
+Package: uuid6==2024.7.10
+Import: from uuid6 import uuid7
+Migration Type: sa.Uuid() (NEVER sa.String())
+'''
 
 #### ✅ DO: Create Model
   ```python
