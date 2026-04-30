@@ -2,11 +2,11 @@
 name: Build & Push Frontend Image
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/build-frontend.yml'
+#  push:
+#    branches: [main]
+#    paths:
+#      - 'frontend/**'
+#      - '.github/workflows/build-frontend.yml'
   workflow_dispatch:
   workflow_call:
     outputs:
