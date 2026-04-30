@@ -52,15 +52,15 @@ Migration Type: sa.Uuid() (NEVER sa.String())
 
 #### ✅ DO: Create Model
 ```Python
-# backend/src/models/your_model.py
-from models.base import BaseModel  # ← Provides: id (UUID v7), created_at, updated_at
-from sqlmodel import Field
-from uuid import UUID
+  # backend/src/models/your_model.py
+  from models.base import BaseModel  # ← Provides: id (UUID v7), created_at, updated_at
+  from sqlmodel import Field
+  from uuid import UUID
 
-class YourModel(BaseModel, table=True):  # ← table=True is required
-    # ✅ id field is inherited - DO NOT redeclare it
-    name: str = Field(max_length=100, index=True)
-    owner_id: UUID = Field(foreign_key="users.id", index=True)  # ← Foreign keys also use UUID
+  class YourModel(BaseModel, table=True):  # ← table=True is required
+      # ✅ id field is inherited - DO NOT redeclare it
+      name: str = Field(max_length=100, index=True)
+      owner_id: UUID = Field(foreign_key="users.id", index=True)  # ← Foreign keys also use UUID
 
 #### ✅ DO: Migration File
 ```Python
