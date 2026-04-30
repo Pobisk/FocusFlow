@@ -2,11 +2,11 @@
 name: Build & Push Backend Image
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/build-backend.yml'
+#  push:
+#    branches: [main]
+#    paths:
+#      - 'backend/**'
+#      - '.github/workflows/build-backend.yml'
   workflow_dispatch:
   workflow_call: # для вызова из deploy
 
