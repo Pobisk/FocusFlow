@@ -51,7 +51,7 @@
   Migration Type: sa.Uuid() (NEVER sa.String())
 
 #### ✅ DO: Create Model
-  ```Python
+  ```python
   # backend/src/models/your_model.py
   from models.base import BaseModel  # ← Provides: id (UUID v7), created_at, updated_at
   from sqlmodel import Field
