@@ -9,7 +9,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from core.config import settings
-from models.base import BaseModel  # Import ALL models here for autogenerate
+from models import BaseModel, User  # явный импорт всех моделей
 
 # this is the Alembic Config object
 config = context.config
