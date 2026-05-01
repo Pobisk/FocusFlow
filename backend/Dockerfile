@@ -55,10 +55,10 @@ COPY --from=builder ${INSTALL_DIR} /usr/local
 
 # === 1. Копируем файлы конфигурации (все в корень /app) ===
 COPY --chown=${APP_USER}:${APP_USER} \
-  alembic.ini ./alembic.ini \
-  .env.example ./.env.example \
-  pyproject.toml ./pyproject.toml \
-  requirements.txt ./requirements.txt
+  alembic.ini \
+  .env.example \
+  pyproject.toml \
+  requirements.txt
 
 # === 2. Копируем директорию alembic/ отдельно ===
 COPY --chown=${APP_USER}:${APP_USER} \
