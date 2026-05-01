@@ -1,9 +1,9 @@
 """Alembic environment configuration for SQLModel + async PostgreSQL."""
 
-import asyncio
+import os
 from logging.config import fileConfig
 from alembic import context
-from sqlalchemy import engine_from_config, pool, Connection
+from sqlalchemy import engine_from_config, pool
 from core.config import settings
 
 from models import BaseModel  # __init__.py уже импортировал все модели внутрь
@@ -24,19 +24,30 @@ target_metadata = BaseModel.metadata
 def get_url() -> str:
     """
     Get database URL with psycopg2 driver for Alembic (sync).
-    Converts any postgresql:// or postgresql+asyncpg:// to postgresql+psycopg2://
+    Reads directly from environment to avoid Pydantic caching issues.
     """
-    url = str(settings.database_url)
+    # Читаем напрямую из окружения — надёжнее, чем через settings
+    url = os.getenv("DATABASE_URL")
+    
+    if not url:
+        # Фоллбэк: если нет в окружении, берём из settings
+        url = str(settings.database_url)
+    
+    if not url or url.startswith("driver://"):
+        # Фоллбэк: если всё ещё заглушка — берём из alembic.ini и конвертируем
+        url = config.get_main_option("sqlalchemy.url")
+    
     # Конвертируем любой postgresql-вариант в синхронный psycopg2
     if url.startswith("postgresql+asyncpg://"):
         return url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
     elif url.startswith("postgresql://"):
         return url.replace("postgresql://", "postgresql+psycopg2://")
-    return url  # если уже psycopg2 или другой драйвер — возвращаем как есть
+    
+    return url  # если уже psycopg2 или другой драйвер
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode (no DB connection)."""
+    """Run migrations in 'offline' mode."""
     url = get_url()
     context.configure(
         url=url,
@@ -51,11 +62,12 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode (with DB connection) - SYNC version."""
-    configuration = config.get_section(config.config_ini_section) or {}
-    configuration["sqlalchemy.url"] = get_url()
+    """Run migrations in 'online' mode - SYNC version with psycopg2."""
+    # ✅ Сначала устанавливаем URL, потом получаем секцию
+    config.set_main_option("sqlalchemy.url", get_url())
     
-    # ✅ Используем синхронный engine_from_config + psycopg2
+    configuration = config.get_section(config.config_ini_section) or {}
+    
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",
@@ -76,4 +88,4 @@ def run_migrations_online() -> None:
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    run_migrations_online()  # ✅ Убрали asyncio.run() — миграции синхронные
+    run_migrations_online()
