@@ -53,22 +53,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ARG INSTALL_DIR=/install
 COPY --from=builder ${INSTALL_DIR} /usr/local
 
-# === Копируем конфиги и инициализируем alembic, если нужно ===
-COPY --chown=${APP_USER}:${APP_USER} alembic.ini .env.example ./
+# === 1. Сначала копируем ВСЁ, что может быть на хосте ===
+COPY --chown=${APP_USER}:${APP_USER} \
+  alembic.ini .env.example ./ \
+  alembic/ ./alembic/ \
+  pyproject.toml requirements.txt ./
 
-# Создаём структуру alembic/, если папка не скопировалась (пустая на хосте)
-RUN if [ ! -d "alembic" ] || [ ! -f "alembic/script.py.mako" ]; then \
+# === 2. Инициализируем alembic ТОЛЬКО если структура действительно отсутствует ===
+RUN if [ ! -f "alembic/script.py.mako" ]; then \
       echo "🔧 Initializing alembic structure..." && \
-      alembic init alembic && \
-      # Сохраняем шаблон env.py для кастомизации позже \
+      alembic init -t py alembic && \
       cp alembic/env.py alembic/env.py.template; \
     fi
 
-# === Копируем исходный код ===
+# === 3. Затем копируем исходный код ===
 COPY --chown=${APP_USER}:${APP_USER} \
-  src/ ./src/ \
-  alembic/ ./alembic/ \
-  pyproject.toml requirements.txt ./
+  src/ ./src/
 
 # Используем tini как entrypoint для корректной обработки сигналов
 ENTRYPOINT ["/usr/bin/tini", "--"]
