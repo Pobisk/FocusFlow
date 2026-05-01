@@ -61,12 +61,12 @@ COPY --chown=${APP_USER}:${APP_USER} \
 
 # === 2. Инициализируем alembic ТОЛЬКО если структура действительно отсутствует ===
 # === Проверяем, что alembic полностью настроен ===
-RUN if [ ! -d "alembic/versions" ] || [ ! -f "alembic/script.py.mako" ] || [ ! -f "alembic/env.py" ]; then \
-      echo "🔧 Alembic structure missing, initializing..." && \
-      rm -rf alembic && \
-      alembic init alembic && \
-      cp alembic/env.py alembic/env.py.template; \
-    fi
+# RUN if [ ! -d "alembic/versions" ] || [ ! -f "alembic/script.py.mako" ] || [ ! -f "alembic/env.py" ]; then \
+#      echo "🔧 Alembic structure missing, initializing..." && \
+#      rm -rf alembic && \
+#      alembic init alembic && \
+#      cp alembic/env.py alembic/env.py.template; \
+#    fi
 
 # === 3. Затем копируем исходный код ===
 COPY --chown=${APP_USER}:${APP_USER} \
