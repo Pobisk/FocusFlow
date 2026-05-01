@@ -1,93 +1,60 @@
-"""Alembic env.py - direct engine creation, no config fallback."""
+"""Alembic environment configuration for SQLModel + async PostgreSQL."""
 
 import os
-import sys
 from logging.config import fileConfig
 from alembic import context
-from sqlalchemy import create_engine, pool, MetaData
+from sqlalchemy import engine_from_config, pool
+from core.config import settings
 
-# === Импортируйте ВСЕ ваши модели здесь для autogenerate ===
-# Это критично: если модель не импортирована, она не попадёт в миграцию
-from models.user import User  # ← пример, замените на ваши реальные модели
-from models.base import BaseModel
+from models import BaseModel  # __init__.py уже импортировал все модели внутрь
+# Это заставит Python загрузить __init__.py → все модели зарегистрируются
+__import__("models", fromlist=["__all__"])
 
-# Alembic Config
+# this is the Alembic Config object
 config = context.config
-target_metadata = BaseModel.metadata
 
+# Interpret the config file for Python logging
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-
-# === 🔥 ГЛАВНОЕ: создаём URL напрямую, игнорируя alembic.ini ===
-def _get_sync_url() -> str:
-    """Возвращает синхронный URL для Alembic, независимо от настроек."""
-    # 1. Читаем из окружения (приоритет №1)
-    url = os.getenv("DATABASE_URL")
-    
-    # 2. Фоллбэк на settings (если окружение пусто)
-    if not url:
-        sys.path.insert(0, '/app')
-        from core.config import settings
-        url = str(settings.database_url)
-    
-    # 3. Конвертируем async → sync драйвер
-    if url and url.startswith("postgresql+asyncpg://"):
-        return url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
-    elif url and url.startswith("postgresql://"):
-        return url.replace("postgresql://", "postgresql+psycopg2://")
-    
-    # 4. Если ничего не помогло — крашимся явно, а не с "driver://"
-    if not url or url.startswith("driver://"):
-        raise RuntimeError(
-            f"❌ DATABASE_URL not set or invalid. Got: {url!r}. "
-            "Set DATABASE_URL=postgresql+asyncpg://... in docker-compose.yml"
-        )
-    
-    return url
+# Add your model's MetaData object here for 'autogenerate'
+target_metadata = BaseModel.metadata
 
 
-# === Отладочный вывод при импорте модуля ===
-_sync_url = _get_sync_url()
-print(f"\n{'='*70}")
-print(f"🔍 [ALEMBIC ENV LOADED]")
-print(f"   Sync URL: {_sync_url[:80]}...")
-print(f"   Target metadata: {target_metadata}")
-print(f"{'='*70}\n")
+def get_url() -> str:
+    return url  # если уже psycopg2 или другой драйвер
 
 
 def run_migrations_offline() -> None:
-    """Offline mode — не используется в Docker, но оставим для полноты."""
-    context.configure(
-        url=_sync_url,
-        target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-        compare_type=True,
-    )
-    with context.begin_transaction():
         context.run_migrations()
 
 
 def run_migrations_online() -> None:
-    """Online mode — создаём engine НАПРЯМУЮ, минуя config."""
-    print(f"🔍 [ONLINE] Creating engine with URL: {_sync_url[:80]}...")
+    """Run migrations in 'online' mode - SYNC version with psycopg2."""
+    # ✅ Сначала устанавливаем URL, потом получаем секцию
+
+    url = get_url()
+    print(f"🔍 [DEBUG] Final URL for Alembic: {url}")  # ← добавьте эту строку
     
-    # ✅ Создаём engine напрямую — никаких config.get_section()!
-    connectable = create_engine(_sync_url, poolclass=pool.NullPool)
+    config.set_main_option("sqlalchemy.url", get_url())
     
-    print(f"✅ Engine created, dialect: {connectable.dialect.name}")
+    configuration = config.get_section(config.config_ini_section) or {}
     
+    connectable = engine_from_config(
+        configuration,
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
+
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
         )
+
         with context.begin_transaction():
-            print(f"🔄 Running migrations...")
             context.run_migrations()
-            print(f"✅ Migrations completed")
 
 
 if context.is_offline_mode():
