@@ -64,7 +64,7 @@ COPY --chown=${APP_USER}:${APP_USER} \
 RUN if [ ! -d "alembic/versions" ] || [ ! -f "alembic/script.py.mako" ] || [ ! -f "alembic/env.py" ]; then \
       echo "🔧 Alembic structure missing, initializing..." && \
       rm -rf alembic && \
-      alembic init -t py alembic && \
+      alembic init alembic && \
       cp alembic/env.py alembic/env.py.template; \
     fi
 
