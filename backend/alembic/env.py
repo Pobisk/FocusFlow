@@ -1,92 +1,93 @@
-"""Alembic environment configuration for SQLModel + async PostgreSQL."""
+"""Alembic env.py - direct engine creation, no config fallback."""
 
 import os
+import sys
 from logging.config import fileConfig
 from alembic import context
-from sqlalchemy import engine_from_config, pool
-from core.config import settings
+from sqlalchemy import create_engine, pool, MetaData
 
-from models import BaseModel  # __init__.py уже импортировал все модели внутрь
-# Это заставит Python загрузить __init__.py → все модели зарегистрируются
-__import__("models", fromlist=["__all__"])
+# === Импортируйте ВСЕ ваши модели здесь для autogenerate ===
+# Это критично: если модель не импортирована, она не попадёт в миграцию
+from models.user import User  # ← пример, замените на ваши реальные модели
+from models.base import BaseModel
 
-# this is the Alembic Config object
+# Alembic Config
 config = context.config
+target_metadata = BaseModel.metadata
 
-# Interpret the config file for Python logging
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Add your model's MetaData object here for 'autogenerate'
-target_metadata = BaseModel.metadata
 
-
-def get_url() -> str:
-    """
-    Get database URL with psycopg2 driver for Alembic (sync).
-    Reads directly from environment to avoid Pydantic caching issues.
-    """
-    # Читаем напрямую из окружения — надёжнее, чем через settings
+# === 🔥 ГЛАВНОЕ: создаём URL напрямую, игнорируя alembic.ini ===
+def _get_sync_url() -> str:
+    """Возвращает синхронный URL для Alembic, независимо от настроек."""
+    # 1. Читаем из окружения (приоритет №1)
     url = os.getenv("DATABASE_URL")
     
+    # 2. Фоллбэк на settings (если окружение пусто)
     if not url:
-        # Фоллбэк: если нет в окружении, берём из settings
+        sys.path.insert(0, '/app')
+        from core.config import settings
         url = str(settings.database_url)
     
-    if not url or url.startswith("driver://"):
-        # Фоллбэк: если всё ещё заглушка — берём из alembic.ini и конвертируем
-        url = config.get_main_option("sqlalchemy.url")
-    
-    # Конвертируем любой postgresql-вариант в синхронный psycopg2
-    if url.startswith("postgresql+asyncpg://"):
+    # 3. Конвертируем async → sync драйвер
+    if url and url.startswith("postgresql+asyncpg://"):
         return url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
-    elif url.startswith("postgresql://"):
+    elif url and url.startswith("postgresql://"):
         return url.replace("postgresql://", "postgresql+psycopg2://")
     
-    return url  # если уже psycopg2 или другой драйвер
+    # 4. Если ничего не помогло — крашимся явно, а не с "driver://"
+    if not url or url.startswith("driver://"):
+        raise RuntimeError(
+            f"❌ DATABASE_URL not set or invalid. Got: {url!r}. "
+            "Set DATABASE_URL=postgresql+asyncpg://... in docker-compose.yml"
+        )
+    
+    return url
+
+
+# === Отладочный вывод при импорте модуля ===
+_sync_url = _get_sync_url()
+print(f"\n{'='*70}")
+print(f"🔍 [ALEMBIC ENV LOADED]")
+print(f"   Sync URL: {_sync_url[:80]}...")
+print(f"   Target metadata: {target_metadata}")
+print(f"{'='*70}\n")
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode."""
-    url = get_url()
+    """Offline mode — не используется в Docker, но оставим для полноты."""
     context.configure(
-        url=url,
+        url=_sync_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
     )
-
     with context.begin_transaction():
         context.run_migrations()
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode - SYNC version with psycopg2."""
-    # ✅ Сначала устанавливаем URL, потом получаем секцию
-
-    url = get_url()
-    print(f"🔍 [DEBUG] Final URL for Alembic: {url}")  # ← добавьте эту строку
+    """Online mode — создаём engine НАПРЯМУЮ, минуя config."""
+    print(f"🔍 [ONLINE] Creating engine with URL: {_sync_url[:80]}...")
     
-    config.set_main_option("sqlalchemy.url", get_url())
+    # ✅ Создаём engine напрямую — никаких config.get_section()!
+    connectable = create_engine(_sync_url, poolclass=pool.NullPool)
     
-    configuration = config.get_section(config.config_ini_section) or {}
+    print(f"✅ Engine created, dialect: {connectable.dialect.name}")
     
-    connectable = engine_from_config(
-        configuration,
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
-
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
         )
-
         with context.begin_transaction():
+            print(f"🔄 Running migrations...")
             context.run_migrations()
+            print(f"✅ Migrations completed")
 
 
 if context.is_offline_mode():
