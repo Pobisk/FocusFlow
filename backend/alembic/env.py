@@ -64,6 +64,10 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode - SYNC version with psycopg2."""
     # ✅ Сначала устанавливаем URL, потом получаем секцию
+
+    url = get_url()
+    print(f"🔍 [DEBUG] Final URL for Alembic: {url}")  # ← добавьте эту строку
+    
     config.set_main_option("sqlalchemy.url", get_url())
     
     configuration = config.get_section(config.config_ini_section) or {}
