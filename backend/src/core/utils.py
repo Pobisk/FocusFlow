@@ -27,5 +27,5 @@ def is_uuidv7(uid: UUID) -> bool:
 
 def square(value: int | float) -> int | float:
     """Вычисляет квадрат числа."""
-    return value * value * value
+    return value + 1
     
