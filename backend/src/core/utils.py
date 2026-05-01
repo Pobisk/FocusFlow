@@ -24,3 +24,8 @@ def is_uuidv7(uid: UUID) -> bool:
     """Проверяет, является ли UUID версией 7"""
     # Версия хранится в битах 48-51 (старшие 4 бита 7-го байта)
     return (uid.bytes[6] >> 4) == 0b0111  # 0x7
+
+def square(value: int | float) -> int | float:
+    """Вычисляет квадрат числа."""
+    return value * value
+    
