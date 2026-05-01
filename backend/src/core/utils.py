@@ -1,5 +1,9 @@
 from uuid import UUID
 
+def square(value: int | float) -> int | float:
+    """Вычисляет квадрат числа."""
+    return value + 3
+    
 def extract_uuidv7_timestamp(uid: UUID) -> datetime:
     """
     Извлекает временную метку из UUID v7.
@@ -25,7 +29,4 @@ def is_uuidv7(uid: UUID) -> bool:
     # Версия хранится в битах 48-51 (старшие 4 бита 7-го байта)
     return (uid.bytes[6] >> 4) == 0b0111  # 0x7
 
-def square(value: int | float) -> int | float:
-    """Вычисляет квадрат числа."""
-    return value + 2
-    
+   
