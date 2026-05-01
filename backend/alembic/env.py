@@ -4,7 +4,7 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
@@ -24,10 +24,21 @@ if config.config_file_name is not None:
 # Add your model's MetaData object here for 'autogenerate'
 target_metadata = BaseModel.metadata
 
-
 def get_url() -> str:
-    """Get database URL with psycopg2 driver for Alembic (sync)."""
-    return str(settings.database_url).replace("postgresql://", "postgresql+psycopg2://")
+    """
+    Возвращает URL для подключения к БД.
+    Для Alembic (sync) конвертируем asyncpg → psycopg2.
+    """
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        url = config.get_main_option("sqlalchemy.url")
+    
+    # Конвертируем async драйвер в sync для Alembic
+    return url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+    
+# def get_url() -> str:
+#    """Get database URL with psycopg2 driver for Alembic (sync)."""
+#    return str(settings.database_url).replace("postgresql://", "postgresql+psycopg2://")
 
 
 def run_migrations_offline() -> None:
