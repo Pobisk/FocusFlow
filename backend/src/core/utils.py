@@ -2,7 +2,7 @@ from uuid import UUID
 
 def square(value: int | float) -> int | float:
     """Вычисляет квадрат числа."""
-    return value + 3
+    return value + 4
     
 def extract_uuidv7_timestamp(uid: UUID) -> datetime:
     """
