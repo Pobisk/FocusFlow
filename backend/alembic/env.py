@@ -9,7 +9,10 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from core.config import settings
-from models import BaseModel, User  # явный импорт всех моделей
+
+from models import BaseModel  # __init__.py уже импортировал все модели внутрь
+# Это заставит Python загрузить __init__.py → все модели зарегистрируются
+__import__("models", fromlist=["__all__"])
 
 # this is the Alembic Config object
 config = context.config
