@@ -9,7 +9,7 @@ from core.config import settings, get_settings
 from core.scheduler import create_scheduler, start_scheduler, shutdown_scheduler
 from db.session import async_engine, sync_engine
 from models.base import BaseModel
-from api.endpoints import health
+from api.endpoints import health, auth
 
 def _get_structlog_level(level) -> int:
     """
@@ -100,6 +100,7 @@ app.add_middleware(
 
 # ── Routes ─────────────────────────────────────────
 app.include_router(health.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
 
 # Root redirect to docs
 @app.get("/", include_in_schema=False)
