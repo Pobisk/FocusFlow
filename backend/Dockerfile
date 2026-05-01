@@ -54,23 +54,18 @@ ARG INSTALL_DIR=/install
 COPY --from=builder ${INSTALL_DIR} /usr/local
 
 # === 1. Сначала копируем ВСЁ, что может быть на хосте ===
+# === 1. Копируем конфиги и alembic (пути от корня репо!) ===
 COPY --chown=${APP_USER}:${APP_USER} \
-  alembic.ini .env.example ./ \
-  alembic/ ./alembic/ \
-  pyproject.toml requirements.txt ./
+  backend/alembic.ini ./alembic.ini \
+  backend/.env.example ./.env.example \
+  backend/alembic/ ./alembic/ \
+  backend/pyproject.toml ./pyproject.toml \
+  backend/requirements.txt ./requirements.txt
 
-# === 2. Инициализируем alembic ТОЛЬКО если структура действительно отсутствует ===
-# === Проверяем, что alembic полностью настроен ===
-# RUN if [ ! -d "alembic/versions" ] || [ ! -f "alembic/script.py.mako" ] || [ ! -f "alembic/env.py" ]; then \
-#      echo "🔧 Alembic structure missing, initializing..." && \
-#      rm -rf alembic && \
-#      alembic init alembic && \
-#      cp alembic/env.py alembic/env.py.template; \
-#    fi
-
-# === 3. Затем копируем исходный код ===
+# === 2. Копируем исходный код ===
 COPY --chown=${APP_USER}:${APP_USER} \
-  src/ ./src/
+  backend/src/ ./src/
+
 
 # Используем tini как entrypoint для корректной обработки сигналов
 ENTRYPOINT ["/usr/bin/tini", "--"]
