@@ -53,19 +53,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ARG INSTALL_DIR=/install
 COPY --from=builder ${INSTALL_DIR} /usr/local
 
-# === 1. Сначала копируем ВСЁ, что может быть на хосте ===
-# === 1. Копируем конфиги и alembic (пути от корня репо!) ===
+# === 1. Копируем конфиги и alembic (пути ОТНОСИТЕЛЬНО ./backend/) ===
 COPY --chown=${APP_USER}:${APP_USER} \
-  backend/alembic.ini ./alembic.ini \
-  backend/.env.example ./.env.example \
-  backend/alembic/ ./alembic/ \
-  backend/pyproject.toml ./pyproject.toml \
-  backend/requirements.txt ./requirements.txt
+  alembic.ini ./alembic.ini \
+  .env.example ./.env.example \
+  alembic/ ./alembic/ \
+  pyproject.toml ./pyproject.toml \
+  requirements.txt ./requirements.txt
 
 # === 2. Копируем исходный код ===
 COPY --chown=${APP_USER}:${APP_USER} \
-  backend/src/ ./src/
-
+  src/ ./src/
+  
 
 # Используем tini как entrypoint для корректной обработки сигналов
 ENTRYPOINT ["/usr/bin/tini", "--"]
