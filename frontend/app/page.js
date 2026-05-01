@@ -1,3 +1,5 @@
+import LoginForm from '@/components/LoginForm';
+
 export default function Home() {
   return (
     <main style={{ fontFamily: 'system-ui, -apple-system, sans-serif', maxWidth: '800px', margin: '0 auto', padding: '2rem', lineHeight: '1.6', color: '#333' }}>
@@ -14,6 +16,14 @@ export default function Home() {
           советы для тех, кто хочет работать осознанно и без хаоса.
         </p>
       </header>
+
+      {/* Секция авторизации */}
+      <section className="max-w-md mx-auto bg-white p-6 rounded-xl shadow-sm border">
+        <h2 className="text-xl font-semibold mb-4 text-center text-gray-900">
+          Вход в систему
+        </h2>
+        <LoginForm />
+      </section>
 
       {/* Блок 1 */}
       <section style={{ marginBottom: '2.5rem' }}>
