@@ -60,8 +60,10 @@ COPY --chown=${APP_USER}:${APP_USER} \
   pyproject.toml requirements.txt ./
 
 # === 2. Инициализируем alembic ТОЛЬКО если структура действительно отсутствует ===
-RUN if [ ! -f "alembic/script.py.mako" ]; then \
-      echo "🔧 Initializing alembic structure..." && \
+# === Проверяем, что alembic полностью настроен ===
+RUN if [ ! -d "alembic/versions" ] || [ ! -f "alembic/script.py.mako" ] || [ ! -f "alembic/env.py" ]; then \
+      echo "🔧 Alembic structure missing, initializing..." && \
+      rm -rf alembic && \
       alembic init -t py alembic && \
       cp alembic/env.py alembic/env.py.template; \
     fi
