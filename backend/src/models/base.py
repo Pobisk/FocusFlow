@@ -3,6 +3,7 @@ from sqlmodel import Field, SQLModel
 from uuid import UUID
 from datetime import datetime, timezone
 from uuid6 import uuid7
+from sqlalchemy import Column, DateTime
 
 
 class BaseModel(SQLModel):
@@ -23,7 +24,7 @@ class BaseModel(SQLModel):
     
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)},
         nullable=False
     )
     
