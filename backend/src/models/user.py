@@ -1,7 +1,7 @@
 """User model for authentication."""
 
 from sqlmodel import Field, Index
-from src.models.base import BaseModel
+from models.base import BaseModel
 
 
 class User(BaseModel, table=True):
