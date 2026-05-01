@@ -22,7 +22,21 @@ target_metadata = BaseModel.metadata
 
 
 def get_url() -> str:
-    return url  # если уже psycopg2 или другой драйвер
+    """
+    Get database URL with psycopg2 driver for Alembic (sync).
+    Priority: DATABASE_URL env var > settings.database_url
+    """
+        
+    # 1. Приоритет: переменная окружения (для Docker/CI)
+    env_url = os.getenv("DATABASE_URL")
+    if env_url:
+        # Нормализуем: asyncpg → psycopg2 для синхронных миграций Alembic
+        return env_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://") \
+                     .replace("postgresql://", "postgresql+psycopg2://")
+    
+    # 2. Фолбэк: настройки из pydantic
+    url = str(settings.database_url)
+    return url.replace("postgresql://", "postgresql+psycopg2://")
 
 
 def run_migrations_offline() -> None:
