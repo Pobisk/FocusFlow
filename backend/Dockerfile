@@ -53,12 +53,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ARG INSTALL_DIR=/install
 COPY --from=builder ${INSTALL_DIR} /usr/local
 
-# === 1. Копируем файлы конфигурации (все в корень /app) ===
-COPY --chown=${APP_USER}:${APP_USER} \
-  alembic.ini \
-  .env.example \
-  pyproject.toml \
-  requirements.txt
+# === 1. Копируем файлы по одному (все в корень /app) ===
+# requirements.txt (обязательный)
+COPY --chown=${APP_USER}:${APP_USER} requirements.txt ./
+# pyproject.toml (если есть)
+COPY --chown=${APP_USER}:${APP_USER} pyproject.toml ./
+# alembic.ini (обязательный для Alembic)
+COPY --chown=${APP_USER}:${APP_USER} alembic.ini ./
+# .env.example (опциональный, скрытый файл)
+COPY --chown=${APP_USER}:${APP_USER} .env.example ./
 
 # === 2. Копируем директорию alembic/ отдельно ===
 COPY --chown=${APP_USER}:${APP_USER} \
