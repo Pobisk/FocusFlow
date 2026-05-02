@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.session import get_db
 from models.user import User
