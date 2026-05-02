@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { md5 } from '@/lib/md5';
+import { sha256 } from '@/lib/sha256';
 import { authLogin } from '@/lib/api';
 
 export default function LoginForm() {
@@ -12,6 +12,10 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  /**
+   * Валидация полей формы
+   * @returns {string|null} Сообщение об ошибке или null, если всё ок
+   */
   const validate = () => {
     if (!login.trim()) return 'Введите логин';
     if (login.trim().length < 3) return 'Логин должен содержать минимум 3 символа';
@@ -20,10 +24,14 @@ export default function LoginForm() {
     return null;
   };
 
+  /**
+   * Обработчик отправки формы
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     
+    // Валидация
     const validationError = validate();
     if (validationError) {
       setError(validationError);
@@ -32,18 +40,30 @@ export default function LoginForm() {
     
     setLoading(true);
     try {
-      const passwordHash = await md5(password);
+      // Вычисляем SHA-256 хэш пароля
+      const passwordHash = await sha256(password);
+      
+      // Вызываем API авторизации
       const result = await authLogin(login.trim(), passwordHash);
       
-      // Сохранение сессии
+      // Сохраняем сессию в localStorage
       localStorage.setItem('access_token', result.access_token);
       localStorage.setItem('user_name', result.name);
       
-      // Переход на рабочий экран
+      // Переход на рабочий экран + обновление роутера
       router.push('/workspace');
       router.refresh();
+      
     } catch (err) {
-      setError(err.message);
+      // Безопасное извлечение сообщения об ошибке
+      const errorMessage = 
+        err instanceof Error ? err.message : 
+        typeof err === 'string' ? err : 
+        'Ошибка авторизации';
+        
+      setError(errorMessage);
+      console.error('Login error:', err);
+      
     } finally {
       setLoading(false);
     }
@@ -51,12 +71,18 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-md mx-auto">
+      {/* Блок ошибки */}
       {error && (
-        <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-200">
+        <div 
+          className="p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-200"
+          role="alert"
+          aria-live="polite"
+        >
           {error}
         </div>
       )}
       
+      {/* Поле логина */}
       <div>
         <label htmlFor="login" className="block text-sm font-medium text-gray-700 mb-1">
           Логин
@@ -70,9 +96,13 @@ export default function LoginForm() {
           disabled={loading}
           placeholder="Введите логин"
           autoComplete="username"
+          required
+          minLength={3}
+          maxLength={100}
         />
       </div>
       
+      {/* Поле пароля */}
       <div>
         <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
           Пароль
@@ -86,9 +116,12 @@ export default function LoginForm() {
           disabled={loading}
           placeholder="Введите пароль"
           autoComplete="current-password"
+          required
+          minLength={6}
         />
       </div>
       
+      {/* Кнопка входа */}
       <button
         type="submit"
         disabled={loading}
