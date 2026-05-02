@@ -12,7 +12,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("", response_model=AuthResponse, status_code=status.HTTP_200_OK)
-async def authenticate(request: AuthRequest, db=Depends(get_db)):
+async def authenticate(request: AuthRequest, db AsyncSession = Depends(get_db)):
     """
     Авторизация пользователя по логину и хэшу пароля.
     
@@ -23,8 +23,8 @@ async def authenticate(request: AuthRequest, db=Depends(get_db)):
     """
     # Поиск пользователя по логину
     statement = select(User).where(User.login == request.login)
-    result = await db.exec(statement)
-    user = result.first()
+    result = await db.execute(statement)
+    user = result.scalars().first()
     
     if not user:
         raise HTTPException(
