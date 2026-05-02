@@ -12,7 +12,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("", response_model=AuthResponse, status_code=status.HTTP_200_OK)
-async def authenticate(request: AuthRequest, db AsyncSession = Depends(get_db)):
+async def authenticate(request: AuthRequest, db: AsyncSession = Depends(get_db)):
     """
     Авторизация пользователя по логину и хэшу пароля.
     
