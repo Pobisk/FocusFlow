@@ -47,8 +47,7 @@ class Sphere(BaseModel, table=True):
     
     # ⭐ Оценка удовлетворённости (1.0 - 5.0, с точностью до десятых)
     satisfaction: float = Field(
-        sa_column=Column(Numeric(precision=3, scale=1)),  # DECIMAL(3,1): 1.0 ... 5.0
-        nullable=False,
+        sa_column=Column(Numeric(precision=3, scale=1), nullable=False),
         ge=1.0,
         le=5.0,
         description="Оценка удовлетворённости сферой от 1.0 до 5.0"
