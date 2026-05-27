@@ -1,6 +1,6 @@
 # docker-compose.yml
 # Production-ready compose for single VPS
-# Stack: FastAPI + Next.js + PostgreSQL + Redis + Caddy + MinIO (S3)
+# Stack: FastAPI + Vite/React + PostgreSQL + Redis + Caddy + MinIO (S3)
 
 services:
   # ── Reverse Proxy & HTTPS ─────────────────────────────────────
@@ -31,27 +31,21 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # ── Frontend: Next.js 14 ──────────────────────────────────────
+  # ── Frontend: Vite + React (SPA, nginx) ──────────────────────
   frontend:
     image: ${FRONTEND_IMAGE:-ghcr.io/pobisk/focusflow-frontend:latest}
     container_name: focusflow-frontend
     restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      - NEXT_PUBLIC_API_URL=/api
-      - NEXT_PUBLIC_S3_BUCKET=${S3_BUCKET}
-      - NEXT_PUBLIC_S3_REGION=${S3_REGION}
     depends_on:
       - backend
     networks:
       - focusflow-net
-    deploy:  # 🔋 Оптимизация под 1 ГБ RAM
+    deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 128M
         reservations:
-          memory: 256M
+          memory: 64M
     logging:
       driver: json-file
       options:
@@ -141,14 +135,17 @@ services:
         max-file: "3"
 
   # ── S3 Storage (local dev): MinIO ─────────────────────────────
+  # ⚠️ В production рекомендуется использовать внешний S3 (Cloudflare R2, AWS S3)
+  #    и не запускать MinIO. Если MinIO всё же нужен — раскомментируйте порты ниже,
+  #    но НЕ открывайте их на весь мир (используйте Caddy как прокси).
   minio:
     image: minio/minio:latest
     pull_policy: if_not_present
     container_name: focusflow-minio
     restart: unless-stopped
-    ports:
-      - "9000:9000"  # S3 API
-      - "9001:9001"  # Web UI (опционально, в продакшене можно убрать)
+    # ports:
+    #   - "9000:9000"  # S3 API (закомментировано — используйте reverse_proxy /s3/ в Caddy)
+    #   - "9001:9001"  # Web UI (не открывать в production)
     environment:
       - MINIO_ROOT_USER=${S3_ACCESS_KEY}
       - MINIO_ROOT_PASSWORD=${S3_SECRET_KEY}

@@ -16,5 +16,5 @@ class User(BaseModel, table=True):
     
     __table_args__ = (
         Index("ix_users_login", "login"),
-        Index("ix_users_created_at", "created_at"),
+        #Index("ix_users_created_at", "created_at"),
     )
