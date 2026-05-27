@@ -3,13 +3,20 @@
 
 {
     email pobiskwork@mail.ru
-    on_demand_tls {
-        ask http://backend:8000/api/health
-    }
+    # Стабильный TLS вместо on_demand_tls (избегаем проблем с лимитами Let's Encrypt)
+    # Для on_demand_tls раскомментируйте ниже и настройте ask-эндпоинт
+    # on_demand_tls {
+    #     ask http://backend:8000/api/health
+    # }
 }
 
 # Основной домен
 {$DOMAIN_NAME:localhost} {
+
+    tls {
+        # Для production замените на свой email в глобальной секции выше
+        # Для локальной разработки Caddy сам сгенерирует самоподписанный сертификат
+    }
 
     # 🔐 Security headers
     header {
@@ -22,19 +29,14 @@
     # 🗜️ Включить сжатие
     encode zstd gzip
 
-    # API запросы → backend
+    # API запросы → backend (FastAPI)
     reverse_proxy /api/* backend:8000
 
     # S3 pre-signed URLs (если используется локальный MinIO в dev)
     reverse_proxy /s3/* minio:9000
 
-    # Health check для Caddy on-demand TLS
-    #handle /api/health {
-    #    reverse_proxy backend:8000
-    #}
-
-    # Всё остальное → Next.js frontend
-    reverse_proxy frontend:3000
+    # Всё остальное → frontend (nginx, порт 80)
+    reverse_proxy frontend:80
 
     # Логирование (опционально)
     log {
@@ -42,9 +44,3 @@
         format json
     }
 }
-
-# Локальная разработка без HTTPS (опционально)
-#:80 {
-#    reverse_proxy /api/* backend:8000
-#    reverse_proxy frontend:3000
-#}

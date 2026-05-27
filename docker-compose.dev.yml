@@ -1,0 +1,69 @@
+# docker-compose.dev.yml
+# Используется совместно с docker-compose.yml для локальной разработки.
+# Запуск: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+
+services:
+  # ═══════════════════════════════════════════════════════════
+  # Сервисы, работающие без изменений из docker-compose.yml
+  # ═══════════════════════════════════════════════════════════
+  postgres:
+    # наследует всё из основного файла
+  redis:
+    # наследует всё из основного файла
+  minio:
+    # В dev-режиме открываем порты MinIO (в production они закомментированы)
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  # ═══════════════════════════════════════════════════════════
+  # Бэкенд: FastAPI + Uvicorn с авто‑перезагрузкой
+  # ═══════════════════════════════════════════════════════════
+  backend:
+    image: focusflow-backend:dev
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/requirements.txt:/app/requirements.txt
+      - ./backend/pyproject.toml:/app/pyproject.toml
+      - ./backend/alembic.ini:/app/alembic.ini
+      - ./backend/alembic:/app/alembic
+      - uploads_data:/app/uploads
+    environment:
+      - ENVIRONMENT=development
+      - PYTHONPATH=/app/src
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+
+  # ═══════════════════════════════════════════════════════════
+  # Фронтенд: Vite dev‑сервер с HMR
+  # ═══════════════════════════════════════════════════════════
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - backend
+
+  # ═══════════════════════════════════════════════════════════
+  # Caddy — отключаем в dev‑режиме (не нужен)
+  # ═══════════════════════════════════════════════════════════
+  caddy:
+    profiles:
+      - production
+
+# Тома, специфичные для dev‑окружения
+volumes:
+  uploads_data:
