@@ -6,16 +6,17 @@ is registered with BaseModel.metadata before Alembic runs.
 """
 
 # Import base first
-from .base import BaseModel
+from .base import BaseModel, UserOwnedModel
 
 # Import all models here (order matters for FK dependencies)
 from .user import User
+from .sphere import Sphere, SphereSatisfactionHistory
 
 # Optional: export for convenient imports elsewhere
 __all__ = [
     "BaseModel",
+    "UserOwnedModel",
     "User",
-    # "Sphere",  # раскомментируйте, когда будет готова миграция для spheres
-    # "Task",  # раскомментируйте, когда создадите другие модели
-    # "File",
+    "Sphere",
+    "SphereSatisfactionHistory",
 ]

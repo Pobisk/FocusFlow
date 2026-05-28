@@ -40,8 +40,17 @@ export function WorkspacePage() {
           </button>
         </header>
 
-        {/* Здесь будут последующие экраны приложения */}
-        <div className="grid gap-4 md:grid-cols-2">
+        {/* Навигационные кнопки */}
+        <div className="grid gap-4 md:grid-cols-2 mb-8">
+          <button
+            onClick={() => navigate('/spheres')}
+            className="p-4 bg-white rounded-lg shadow-sm border text-left hover:shadow-md transition cursor-pointer"
+          >
+            <h3 className="font-medium mb-1">🌐 Сферы</h3>
+            <p className="text-sm text-gray-500">
+              Управление сферами жизни
+            </p>
+          </button>
           <div className="p-4 bg-white rounded-lg shadow-sm border">
             <h3 className="font-medium mb-2">📋 Задачи</h3>
             <p className="text-sm text-gray-500">

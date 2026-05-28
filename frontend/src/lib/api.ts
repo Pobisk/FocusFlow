@@ -103,6 +103,11 @@ async function apiFetch<T>(
     throw new ApiRequestError(errorMessage, response.status)
   }
 
+  // 204 No Content — тело ответа пустое, не пытаемся парсить JSON
+  if (response.status === 204) {
+    return undefined as T
+  }
+
   return response.json() as Promise<T>
 }
 
@@ -128,15 +133,52 @@ export async function authLogin(login: string, hash: string): Promise<AuthRespon
 
 // ── Sphere API ───────────────────────────────────────
 
-interface Sphere {
+export interface Sphere {
   id: string
   code: string
   name: string
   order: number
   is_active: boolean
   satisfaction: number
+  created_at: string
+  updated_at: string
+}
+
+export interface SphereCreate {
+  code: string
+  name: string
+  order?: number
+  satisfaction?: number
+}
+
+export interface SphereUpdate {
+  code?: string
+  name?: string
+  order?: number
+  is_active?: boolean
+  satisfaction?: number
 }
 
 export async function getSpheres(): Promise<Sphere[]> {
-  return apiFetch<Sphere[]>('/sphere')
+  return apiFetch<Sphere[]>('/spheres')
+}
+
+export async function createSphere(data: SphereCreate): Promise<Sphere> {
+  return apiFetch<Sphere>('/spheres', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateSphere(sphereId: string, data: SphereUpdate): Promise<Sphere> {
+  return apiFetch<Sphere>(`/spheres/${sphereId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteSphere(sphereId: string): Promise<void> {
+  await apiFetch<void>(`/spheres/${sphereId}`, {
+    method: 'DELETE',
+  })
 }
