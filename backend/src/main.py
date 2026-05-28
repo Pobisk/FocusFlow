@@ -59,18 +59,12 @@ async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown events."""
     # ── Startup ─────────────────────────────────────
     logger.info("🚀 Starting FocusFlow API", environment=settings.environment)
-    
-    # Create tables on startup (for development only)
-    if settings.is_dev:
-        logger.info("🔧 Dev mode: creating DB tables")
-        async with async_engine.begin() as conn:
-            await conn.run_sync(BaseModel.metadata.create_all)
-    
+
     # Start scheduler
     start_scheduler(scheduler)
-    
+
     yield  # Application runs here
-    
+
     # ── Shutdown ────────────────────────────────────
     logger.info("🛑 Shutting down FocusFlow API")
     shutdown_scheduler(scheduler)

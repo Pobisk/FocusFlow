@@ -39,8 +39,18 @@ function extractErrorMessage(data: unknown): string | null {
 }
 
 /**
+ * Очищает сессию и перенаправляет на страницу логина.
+ */
+function handleUnauthorized(): void {
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('user_name')
+  window.location.href = '/'
+}
+
+/**
  * Базовый fetch с авторизацией.
  * Автоматически подставляет JWT-токен из localStorage.
+ * При ответе 401 — очищает токен и перенаправляет на страницу логина.
  */
 async function apiFetch<T>(
   path: string,
@@ -61,6 +71,25 @@ async function apiFetch<T>(
     ...options,
     headers,
   })
+
+  // 401 без токена = неверные учётные данные (логин/пароль)
+  // 401 с токеном = сессия истекла или токен невалиден
+  if (response.status === 401) {
+    if (token) {
+      handleUnauthorized()
+      throw new ApiRequestError('Сессия истекла. Выполните вход заново.', 401)
+    }
+    // Без токена — просто пробрасываем ошибку с сервера
+    let errorMessage = 'Неверный логин или пароль'
+    try {
+      const errorData = await response.json()
+      const extracted = extractErrorMessage(errorData)
+      if (extracted) errorMessage = extracted
+    } catch {
+      // ignore parse error
+    }
+    throw new ApiRequestError(errorMessage, 401)
+  }
 
   if (!response.ok) {
     let errorMessage = 'Ошибка запроса'
@@ -91,7 +120,7 @@ interface AuthResponse {
 }
 
 export async function authLogin(login: string, hash: string): Promise<AuthResponse> {
-  return apiFetch<AuthResponse>('/auth', {
+  return apiFetch<AuthResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ login, hash } satisfies AuthRequest),
   })

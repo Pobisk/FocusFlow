@@ -10,13 +10,12 @@ from .base import BaseModel
 
 # Import all models here (order matters for FK dependencies)
 from .user import User
-from .sphere import Sphere
 
 # Optional: export for convenient imports elsewhere
 __all__ = [
     "BaseModel",
     "User",
-    "Sphere"
+    # "Sphere",  # раскомментируйте, когда будет готова миграция для spheres
     # "Task",  # раскомментируйте, когда создадите другие модели
     # "File",
 ]
