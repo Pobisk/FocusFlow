@@ -7,7 +7,7 @@
 ## 2. Зависимости
 
 - Модуль **01 — Авторизация** (требуется `get_current_user`).
-- Базовая модель `BaseModel`.
+- Базовая модель `UserOwnedModel` (наследуется от `BaseModel`, содержит `id`, `user_id`, `created_at`, `updated_at`).
 
 ## 3. Модель данных
 
@@ -16,14 +16,16 @@
 Файл: `backend/src/models/sphere.py` (уже существует, доработать)
 
 ```python
-from models.base import BaseModel
+from models.base import UserOwnedModel, UTCDateTime
 from sqlmodel import Field
 from uuid import UUID
+from datetime import datetime
 
-class Sphere(BaseModel, table=True):
+class Sphere(UserOwnedModel, table=True):
     __tablename__ = "spheres"
 
-    user_id: UUID = Field(foreign_key="users.id", nullable=False, index=True)
+    # ✅ user_id, id, created_at, updated_at — унаследованы от UserOwnedModel, не объявлять!
+
     code: str = Field(nullable=False, max_length=10)
     name: str = Field(nullable=False, max_length=200)
     order: int = Field(nullable=False, default=0)
@@ -31,21 +33,57 @@ class Sphere(BaseModel, table=True):
     satisfaction: float = Field(nullable=False, default=3.0, ge=1.0, le=5.0)
 ```
 
-### 3.2. Миграция
+### 3.2. SphereSatisfactionHistory
+
+Файл: `backend/src/models/sphere_history.py` (новый файл)
+
+```python
+from models.base import UserOwnedModel, UTCDateTime
+from sqlmodel import Field
+from uuid import UUID
+from datetime import datetime
+
+class SphereSatisfactionHistory(UserOwnedModel, table=True):
+    __tablename__ = "sphere_satisfaction_history"
+
+    # ✅ user_id, id, created_at, updated_at — унаследованы от UserOwnedModel
+
+    sphere_id: UUID = Field(
+        foreign_key="spheres.id", ondelete="CASCADE",
+        nullable=False, index=True,
+    )
+    satisfaction: float = Field(nullable=False)
+    changed_at: datetime = Field(
+        nullable=False,
+        sa_type=UTCDateTime,  # ← TIMESTAMPTZ
+    )
+```
+
+### 3.3. Миграция
 
 Создать Alembic-миграцию через `alembic revision --autogenerate`.
 
-Поля:
+Поля таблицы `spheres`:
 - `id` — `sa.Uuid()`, PK
-- `user_id` — `sa.Uuid()`, FK → users.id, not null, index
+- `user_id` — `sa.Uuid()`, FK → users.id, not null, index (унаследовано от UserOwnedModel)
 - `code` — `sa.String(10)`, not null
 - `name` — `sa.String(200)`, not null
 - `order` — `sa.Integer()`, not null, default 0
 - `is_active` — `sa.Boolean()`, not null, default True
 - `satisfaction` — `sa.Float()`, not null, default 3.0
-- `created_at`, `updated_at` — стандартные
+- `created_at` — `sa.DateTime(timezone=True)`, not null
+- `updated_at` — `sa.DateTime(timezone=True)`, not null
 
-### 3.3. Схемы Pydantic
+Поля таблицы `sphere_satisfaction_history`:
+- `id` — `sa.Uuid()`, PK
+- `user_id` — `sa.Uuid()`, FK → users.id, not null, index (унаследовано от UserOwnedModel)
+- `sphere_id` — `sa.Uuid()`, FK → spheres.id, not null, index
+- `satisfaction` — `sa.Float()`, not null
+- `changed_at` — `sa.DateTime(timezone=True)`, not null
+- `created_at` — `sa.DateTime(timezone=True)`, not null
+- `updated_at` — `sa.DateTime(timezone=True)`, not null
+
+### 3.4. Схемы Pydantic
 
 Файл: `backend/src/schemas/sphere.py`
 
@@ -53,9 +91,11 @@ class Sphere(BaseModel, table=True):
 from pydantic import BaseModel, Field
 from uuid import UUID
 from datetime import datetime
+from typing import Optional
 
 class SphereRead(BaseModel):
     id: UUID
+    user_id: UUID
     code: str
     name: str
     order: int
@@ -134,18 +174,9 @@ class SphereUpdate(BaseModel):
 
 ### 4.2. История удовлетворённости
 
-При каждом изменении `satisfaction` сохранять запись в отдельную таблицу `sphere_satisfaction_history`:
+При каждом изменении `satisfaction` сохранять запись в отдельную таблицу `sphere_satisfaction_history` (см. п. 3.2).
 
-```python
-class SphereSatisfactionHistory(BaseModel, table=True):
-    __tablename__ = "sphere_satisfaction_history"
-
-    sphere_id: UUID = Field(foreign_key="spheres.id", nullable=False, index=True)
-    satisfaction: float = Field(nullable=False)
-    changed_at: datetime = Field(nullable=False)
-```
-
-Миграция для этой таблицы создаётся отдельно.
+Миграция для этой таблицы создаётся отдельно через `alembic revision --autogenerate`.
 
 ## 5. Frontend
 

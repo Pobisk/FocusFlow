@@ -8,6 +8,7 @@
 
 - Модуль **01 — Авторизация** (защита эндпоинтов).
 - Модуль **04 — Проекты и задачи** (действие привязано к проекту).
+- Базовая модель `UserOwnedModel` с кастомным типом `UTCDateTime`.
 
 ## 3. Модель данных
 
@@ -16,11 +17,11 @@
 Файл: `backend/src/models/action.py`
 
 ```python
-from models.base import BaseModel
+import enum
+from models.base import UserOwnedModel, UTCDateTime
 from sqlmodel import Field
 from uuid import UUID
-from datetime import datetime, date
-import enum
+from datetime import datetime
 
 class ActionStatus(str, enum.Enum):
     ACTIVE = "active"
@@ -28,19 +29,20 @@ class ActionStatus(str, enum.Enum):
     CANCELLED = "cancelled"
     WAITING = "waiting"  # ожидание результата от кого-то
 
-class Action(BaseModel, table=True):
+class Action(UserOwnedModel, table=True):
     __tablename__ = "actions"
 
-    user_id: UUID = Field(foreign_key="users.id", nullable=False, index=True)
+    # ✅ user_id, id, created_at, updated_at — унаследованы от UserOwnedModel
+
     project_id: UUID = Field(foreign_key="projects.id", nullable=False, index=True)
     title: str = Field(nullable=False, max_length=500)
     description: str | None = Field(default=None, max_length=2000)
 
     # Привязка ко времени
     is_time_bound: bool = Field(nullable=False, default=False)  # точное время (встреча)
-    start_date: datetime | None = Field(default=None)  # TIMESTAMPTZ, UTC
-    end_date: datetime | None = Field(default=None)    # TIMESTAMPTZ, UTC
-    exact_time: datetime | None = Field(default=None)  # для встреч: точное время
+    start_date: datetime | None = Field(default=None, sa_type=UTCDateTime)  # TIMESTAMPTZ, UTC
+    end_date: datetime | None = Field(default=None, sa_type=UTCDateTime)    # TIMESTAMPTZ, UTC
+    exact_time: datetime | None = Field(default=None, sa_type=UTCDateTime)  # для встреч: точное время
     travel_time_minutes: int | None = Field(default=None)  # время на дорогу (мин)
 
     # Приоритеты
@@ -56,7 +58,7 @@ class Action(BaseModel, table=True):
 
     # Для статуса WAITING
     assignee: str | None = Field(default=None, max_length=200)  # исполнитель
-    check_at: datetime | None = Field(default=None)  # когда проверить
+    check_at: datetime | None = Field(default=None, sa_type=UTCDateTime)  # когда проверить
 
     # Для алгоритма выбора
     refusal_count: int = Field(nullable=False, default=0)  # количество отказов
@@ -67,13 +69,16 @@ class Action(BaseModel, table=True):
 Файл: `backend/src/models/time_log.py`
 
 ```python
-class TimeLog(BaseModel, table=True):
+from models.base import UserOwnedModel, UTCDateTime
+
+class TimeLog(UserOwnedModel, table=True):
     __tablename__ = "time_logs"
 
-    user_id: UUID = Field(foreign_key="users.id", nullable=False, index=True)
+    # ✅ user_id, id, created_at, updated_at — унаследованы от UserOwnedModel
+
     action_id: UUID = Field(foreign_key="actions.id", nullable=False, index=True)
-    started_at: datetime = Field(nullable=False)  # TIMESTAMPTZ, UTC
-    ended_at: datetime | None = Field(default=None)  # TIMESTAMPTZ, UTC
+    started_at: datetime = Field(nullable=False, sa_type=UTCDateTime)  # TIMESTAMPTZ, UTC
+    ended_at: datetime | None = Field(default=None, sa_type=UTCDateTime)  # TIMESTAMPTZ, UTC
     duration_minutes: int | None = Field(default=None)  # вычисляется или вводится вручную
     note: str | None = Field(default=None, max_length=500)
 ```
@@ -82,7 +87,7 @@ class TimeLog(BaseModel, table=True):
 
 **actions:**
 - `id` — `sa.Uuid()`, PK
-- `user_id` — `sa.Uuid()`, FK → users.id, not null, index
+- `user_id` — `sa.Uuid()`, FK → users.id, not null, index (унаследовано от UserOwnedModel)
 - `project_id` — `sa.Uuid()`, FK → projects.id, not null, index
 - `title` — `sa.String(500)`, not null
 - `description` — `sa.String(2000)`, nullable
@@ -103,7 +108,7 @@ class TimeLog(BaseModel, table=True):
 
 **time_logs:**
 - `id` — `sa.Uuid()`, PK
-- `user_id` — `sa.Uuid()`, FK → users.id, not null, index
+- `user_id` — `sa.Uuid()`, FK → users.id, not null, index (унаследовано от UserOwnedModel)
 - `action_id` — `sa.Uuid()`, FK → actions.id, not null, index
 - `started_at` — `sa.DateTime(timezone=True)`, not null
 - `ended_at` — `sa.DateTime(timezone=True)`, nullable

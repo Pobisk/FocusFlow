@@ -9,6 +9,7 @@
 - Модуль **01 — Авторизация** (защита эндпоинтов).
 - Модуль **02 — Сферы жизни** (проект привязан к сфере).
 - Модуль **03 — Цели** (проект опционально привязан к цели).
+- Базовая модель `UserOwnedModel`.
 
 ## 3. Модель данных
 
@@ -17,11 +18,11 @@
 Файл: `backend/src/models/project.py`
 
 ```python
-from models.base import BaseModel
+import enum
+from models.base import UserOwnedModel, UTCDateTime
 from sqlmodel import Field, Relationship
 from uuid import UUID
 from datetime import datetime
-import enum
 
 class ProjectStatus(str, enum.Enum):
     ACTIVE = "active"
@@ -32,18 +33,25 @@ class ProjectType(str, enum.Enum):
     PROJECT = "project"  # проект с несколькими действиями
     TASK = "task"        # вырожденный проект в одно действие
 
-class Project(BaseModel, table=True):
+class Project(UserOwnedModel, table=True):
     __tablename__ = "projects"
 
-    user_id: UUID = Field(foreign_key="users.id", nullable=False, index=True)
+    # ✅ user_id, id, created_at, updated_at — унаследованы от UserOwnedModel
+
     sphere_id: UUID = Field(foreign_key="spheres.id", nullable=False, index=True)
     goal_id: UUID | None = Field(foreign_key="goals.id", default=None, index=True)
     title: str = Field(nullable=False, max_length=300)
     description: str | None = Field(default=None, max_length=5000)
     project_type: ProjectType = Field(nullable=False, default=ProjectType.PROJECT)
     status: ProjectStatus = Field(nullable=False, default=ProjectStatus.ACTIVE)
-    start_date: datetime | None = Field(default=None)  # TIMESTAMPTZ, UTC
-    target_date: datetime | None = Field(default=None)  # TIMESTAMPTZ, UTC
+    start_date: datetime | None = Field(
+        default=None,
+        sa_type=UTCDateTime,  # ← TIMESTAMPTZ
+    )
+    target_date: datetime | None = Field(
+        default=None,
+        sa_type=UTCDateTime,  # ← TIMESTAMPTZ
+    )
     progress: int = Field(nullable=False, default=0, ge=0, le=100)  # 0-100, может вычисляться
 ```
 
@@ -52,8 +60,10 @@ class Project(BaseModel, table=True):
 Чек-лист условий завершения проекта.
 
 ```python
-class ChecklistItem(BaseModel, table=True):
+class ChecklistItem(UserOwnedModel, table=True):
     __tablename__ = "checklist_items"
+
+    # ✅ user_id, id, created_at, updated_at — унаследованы от UserOwnedModel
 
     project_id: UUID = Field(foreign_key="projects.id", nullable=False, index=True)
     text: str = Field(nullable=False, max_length=500)
@@ -65,7 +75,7 @@ class ChecklistItem(BaseModel, table=True):
 
 **projects:**
 - `id` — `sa.Uuid()`, PK
-- `user_id` — `sa.Uuid()`, FK → users.id, not null, index
+- `user_id` — `sa.Uuid()`, FK → users.id, not null, index (унаследовано от UserOwnedModel)
 - `sphere_id` — `sa.Uuid()`, FK → spheres.id, not null, index
 - `goal_id` — `sa.Uuid()`, FK → goals.id, nullable, index
 - `title` — `sa.String(300)`, not null
@@ -79,6 +89,7 @@ class ChecklistItem(BaseModel, table=True):
 
 **checklist_items:**
 - `id` — `sa.Uuid()`, PK
+- `user_id` — `sa.Uuid()`, FK → users.id, not null, index (унаследовано от UserOwnedModel)
 - `project_id` — `sa.Uuid()`, FK → projects.id, not null, index
 - `text` — `sa.String(500)`, not null
 - `is_completed` — `sa.Boolean()`, not null, default False

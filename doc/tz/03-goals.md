@@ -8,6 +8,7 @@
 
 - Модуль **01 — Авторизация** (защита эндпоинтов).
 - Модуль **02 — Сферы жизни** (цель привязана к сфере).
+- Базовая модель `UserOwnedModel`.
 
 ## 3. Модель данных
 
@@ -16,7 +17,8 @@
 Файл: `backend/src/models/goal.py`
 
 ```python
-from models.base import BaseModel
+import enum
+from models.base import UserOwnedModel, UTCDateTime
 from sqlmodel import Field
 from uuid import UUID
 from datetime import datetime
@@ -26,14 +28,18 @@ class GoalStatus(str, enum.Enum):
     COMPLETED = "completed"
     CANCELLED = "cancelled"
 
-class Goal(BaseModel, table=True):
+class Goal(UserOwnedModel, table=True):
     __tablename__ = "goals"
 
-    user_id: UUID = Field(foreign_key="users.id", nullable=False, index=True)
+    # ✅ user_id, id, created_at, updated_at — унаследованы от UserOwnedModel
+
     sphere_id: UUID = Field(foreign_key="spheres.id", nullable=False, index=True)
     title: str = Field(nullable=False, max_length=300)
     description: str | None = Field(default=None, max_length=2000)
-    deadline: datetime | None = Field(default=None)  # TIMESTAMPTZ, UTC
+    deadline: datetime | None = Field(
+        default=None,
+        sa_type=UTCDateTime,  # ← TIMESTAMPTZ
+    )
     status: GoalStatus = Field(nullable=False, default=GoalStatus.ACTIVE)
 ```
 
@@ -41,7 +47,7 @@ class Goal(BaseModel, table=True):
 
 Поля:
 - `id` — `sa.Uuid()`, PK
-- `user_id` — `sa.Uuid()`, FK → users.id, not null, index
+- `user_id` — `sa.Uuid()`, FK → users.id, not null, index (унаследовано от UserOwnedModel)
 - `sphere_id` — `sa.Uuid()`, FK → spheres.id, not null, index
 - `title` — `sa.String(300)`, not null
 - `description` — `sa.String(2000)`, nullable

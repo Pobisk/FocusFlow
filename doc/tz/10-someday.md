@@ -9,6 +9,7 @@
 - Модуль **01 — Авторизация** (защита эндпоинтов).
 - Модуль **02 — Сферы жизни** (фильтрация по сферам).
 - Модуль **04 — Проекты и задачи** (проекты могут быть перемещены в КНМБ).
+- Базовая модель `UserOwnedModel`.
 
 ## 3. Концепция
 
@@ -26,15 +27,20 @@
 
 Проекты со статусом "someday" не отображаются в списке активных проектов, но отображаются в КНМБ.
 
-### 4.2. Вариант Б: Отдельная сущность SomedayItem
+### 4.2. Вариант Б: Отдельная сущность SomedayItem (рекомендуется)
 
 Если нужно хранить в КНМБ не только проекты, но и произвольные заметки/идеи:
 
 ```python
-class SomedayItem(BaseModel, table=True):
+from models.base import UserOwnedModel
+from sqlmodel import Field
+from uuid import UUID
+
+class SomedayItem(UserOwnedModel, table=True):
     __tablename__ = "someday_items"
 
-    user_id: UUID = Field(foreign_key="users.id", nullable=False, index=True)
+    # ✅ user_id, id, created_at, updated_at — унаследованы от UserOwnedModel
+
     sphere_id: UUID | None = Field(foreign_key="spheres.id", default=None, index=True)
     project_id: UUID | None = Field(foreign_key="projects.id", default=None)  # если перенесён из проектов
     title: str = Field(nullable=False, max_length=300)
@@ -48,7 +54,7 @@ class SomedayItem(BaseModel, table=True):
 
 Поля `someday_items`:
 - `id` — `sa.Uuid()`, PK
-- `user_id` — `sa.Uuid()`, FK → users.id, not null, index
+- `user_id` — `sa.Uuid()`, FK → users.id, not null, index (унаследовано от UserOwnedModel)
 - `sphere_id` — `sa.Uuid()`, FK → spheres.id, nullable, index
 - `project_id` — `sa.Uuid()`, FK → projects.id, nullable
 - `title` — `sa.String(300)`, not null

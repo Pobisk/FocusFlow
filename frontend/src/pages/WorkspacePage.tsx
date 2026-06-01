@@ -51,6 +51,15 @@ export function WorkspacePage() {
               Управление сферами жизни
             </p>
           </button>
+          <button
+            onClick={() => navigate('/goals')}
+            className="p-4 bg-white rounded-lg shadow-sm border text-left hover:shadow-md transition cursor-pointer"
+          >
+            <h3 className="font-medium mb-1">🎯 Цели</h3>
+            <p className="text-sm text-gray-500">
+              Желаемые результаты в сферах жизни
+            </p>
+          </button>
           <div className="p-4 bg-white rounded-lg shadow-sm border">
             <h3 className="font-medium mb-2">📋 Задачи</h3>
             <p className="text-sm text-gray-500">
@@ -68,3 +77,4 @@ export function WorkspacePage() {
     </main>
   )
 }
+

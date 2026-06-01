@@ -96,13 +96,18 @@
 Для анализа причин отказов можно создать таблицу:
 
 ```python
-class RefusalLog(BaseModel, table=True):
+from models.base import UserOwnedModel, UTCDateTime
+from uuid import UUID
+from datetime import datetime
+
+class RefusalLog(UserOwnedModel, table=True):
     __tablename__ = "refusal_logs"
 
-    user_id: UUID = Field(foreign_key="users.id", nullable=False, index=True)
+    # ✅ user_id, id, created_at, updated_at — унаследованы от UserOwnedModel
+
     action_id: UUID = Field(foreign_key="actions.id", nullable=False, index=True)
     reason: str = Field(nullable=False, max_length=500)
-    refused_at: datetime = Field(nullable=False)
+    refused_at: datetime = Field(nullable=False, sa_type=UTCDateTime)
 ```
 
 ## 5. Frontend

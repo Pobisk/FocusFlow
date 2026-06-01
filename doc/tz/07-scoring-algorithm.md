@@ -37,14 +37,15 @@ Score = w1 * f_importance + w2 * f_consequences + w3 * f_urgency + w4 * f_proact
 Файл: `backend/src/models/scoring_settings.py`
 
 ```python
-from models.base import BaseModel
+from models.base import UserOwnedModel
 from sqlmodel import Field
-from uuid import UUID
 
-class ScoringSettings(BaseModel, table=True):
+class ScoringSettings(UserOwnedModel, table=True):
     __tablename__ = "scoring_settings"
 
-    user_id: UUID = Field(foreign_key="users.id", nullable=False, index=True, unique=True)
+    # ✅ user_id, id, created_at, updated_at — унаследованы от UserOwnedModel
+    # user_id уже уникален благодаря PK, но добавим unique индекс
+
     w_importance: float = Field(nullable=False, default=1.0)
     w_consequences: float = Field(nullable=False, default=1.0)
     w_urgency: float = Field(nullable=False, default=1.0)

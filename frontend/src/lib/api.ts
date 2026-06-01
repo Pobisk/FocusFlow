@@ -182,3 +182,73 @@ export async function deleteSphere(sphereId: string): Promise<void> {
     method: 'DELETE',
   })
 }
+
+// ── Goal API ───────────────────────────────────────
+
+export interface Goal {
+  id: string
+  sphere_id: string
+  sphere_code: string
+  sphere_name: string
+  title: string
+  description: string | null
+  deadline: string | null
+  status: string
+  progress: number
+  has_active_projects: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface GoalCreate {
+  sphere_id: string
+  title: string
+  description?: string | null
+  deadline?: string | null
+}
+
+export interface GoalUpdate {
+  title?: string
+  description?: string | null
+  deadline?: string | null
+  status?: string
+  sphere_id?: string
+}
+
+export async function getGoals(params?: {
+  sphere_id?: string
+  status?: string
+  show_all?: boolean
+}): Promise<Goal[]> {
+  const searchParams = new URLSearchParams()
+  if (params?.sphere_id) searchParams.set('sphere_id', params.sphere_id)
+  if (params?.status) searchParams.set('status', params.status)
+  if (params?.show_all) searchParams.set('show_all', 'true')
+
+  const query = searchParams.toString()
+  return apiFetch<Goal[]>(`/goals${query ? `?${query}` : ''}`)
+}
+
+export async function getGoal(goalId: string): Promise<Goal> {
+  return apiFetch<Goal>(`/goals/${goalId}`)
+}
+
+export async function createGoal(data: GoalCreate): Promise<Goal> {
+  return apiFetch<Goal>('/goals', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateGoal(goalId: string, data: GoalUpdate): Promise<Goal> {
+  return apiFetch<Goal>(`/goals/${goalId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteGoal(goalId: string): Promise<void> {
+  await apiFetch<void>(`/goals/${goalId}`, {
+    method: 'DELETE',
+  })
+}
