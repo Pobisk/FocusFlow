@@ -185,6 +185,14 @@ export async function deleteSphere(sphereId: string): Promise<void> {
 
 // ── Goal API ───────────────────────────────────────
 
+export interface GoalStatusRef {
+  id: number
+  code: string
+  name: string
+  sort_order: number
+  color: string | null
+}
+
 export interface Goal {
   id: string
   sphere_id: string
@@ -193,9 +201,10 @@ export interface Goal {
   title: string
   description: string | null
   deadline: string | null
-  status: string
-  progress: number
-  has_active_projects: boolean
+  status_id: number
+  status_code: string
+  status_name: string
+  status_color: string | null
   created_at: string
   updated_at: string
 }
@@ -211,18 +220,22 @@ export interface GoalUpdate {
   title?: string
   description?: string | null
   deadline?: string | null
-  status?: string
+  status_id?: number
   sphere_id?: string
+}
+
+export async function getGoalStatuses(): Promise<GoalStatusRef[]> {
+  return apiFetch<GoalStatusRef[]>('/goals/statuses')
 }
 
 export async function getGoals(params?: {
   sphere_id?: string
-  status?: string
+  status_id?: number
   show_all?: boolean
 }): Promise<Goal[]> {
   const searchParams = new URLSearchParams()
   if (params?.sphere_id) searchParams.set('sphere_id', params.sphere_id)
-  if (params?.status) searchParams.set('status', params.status)
+  if (params?.status_id !== undefined) searchParams.set('status_id', String(params.status_id))
   if (params?.show_all) searchParams.set('show_all', 'true')
 
   const query = searchParams.toString()

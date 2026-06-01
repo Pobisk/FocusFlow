@@ -57,7 +57,7 @@
 ```yaml
 Primary Key: UUID v7 (never int, never string)
 Inheritance:
-  - `BaseModel` — только для системных/вспомогательных сущностей (напр. User)
+  - `BaseModel` — только для системных/вспомогательных сущностей (напр. User, GoalStatusRef)
   - `UserOwnedModel` — для всех бизнес-сущностей (Sphere, Goal, Project, Action и т.д.)
 Package: uuid6==2024.7.10
 Import: from uuid6 import uuid7
@@ -124,6 +124,76 @@ sa.Column("id", sa.String(length=36))  # ← WRONG: 36 bytes, slow indexes
 # ❌ Never forget table=True:
 class YourModel(UserOwnedModel):  # ← WRONG: missing table=True → not registered in DB
 ```
+
+### 🏷 Справочные таблицы (Status, Type, и пр.)
+
+**Правило:** Никогда не хранить статус/тип как строку (VARCHAR) в бизнес-таблицах.
+
+#### ✅ DO: Справочная таблица + Integer FK
+
+```python
+# backend/src/models/your_model.py
+from sqlmodel import Field
+from models.base import BaseModel, UserOwnedModel
+
+class EntityStatusRef(BaseModel, table=True):
+    """Справочник статусов. Заполняется через миграцию (seed)."""
+    __tablename__ = "entity_statuses"
+    
+    id: int = Field(primary_key=True)  # 1, 2, 3 — ручной ID
+    code: str = Field(max_length=20, unique=True, index=True)  # 'active', 'completed'
+    name: str = Field(max_length=100)  # 'Активна', 'Завершена'
+    sort_order: int = Field(default=0)
+    color: str | None = Field(default=None, max_length=7)  # '#22c55e'
+
+class Entity(UserOwnedModel, table=True):
+    status_id: int = Field(
+        default=1,
+        foreign_key="entity_statuses.id",
+        nullable=False,
+        index=True,
+    )
+```
+
+#### ✅ DO: Python Enum (int) для type safety
+
+```python
+import enum
+
+class EntityStatus(int, enum.Enum):
+    ACTIVE = 1
+    COMPLETED = 2
+```
+
+Использовать `EntityStatus.ACTIVE.value` как значение по умолчанию:
+```python
+status_id: int = Field(default=EntityStatus.ACTIVE.value, ...)
+```
+
+#### ✅ DO: Seed в миграции
+
+```python
+def upgrade():
+    op.create_table('entity_statuses', ...)
+    op.execute("""
+        INSERT INTO entity_statuses (id, code, name, sort_order, color) VALUES
+        (1, 'active',    'Активна',   1, '#22c55e'),
+        (2, 'completed', 'Завершена', 2, '#3b82f6')
+    """)
+```
+
+#### 🔍 Что даёт справочная таблица против строки
+
+| Критерий | Справочная таблица (Integer FK) | Строка (VARCHAR) |
+|---|---|---|
+| Целостность | ✅ Только id из справочника | ❌ Любая опечатка/вариант |
+| Размер поля | 4 байта (INTEGER) | 7-21 байт (VARCHAR) |
+| Скорость индекса | ✅ Быстро | ❌ Медленнее |
+| Рефакторинг | UPDATE одной строки | UPDATE всех записей |
+| Локализация | ✅ name_ru / name_en | ❌ Только код |
+| Метаданные (цвет, порядок) | ✅ Поля в таблице | ❌ Хардкод в коде |
+
+**Исключений нет:** даже для 2-3 значений делаем справочную таблицу.
 
 ### 📅 Работа с датами и временем (упрощённый подход)
 

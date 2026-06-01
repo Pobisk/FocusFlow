@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getGoals,
+  getGoalStatuses,
   createGoal,
   updateGoal,
   deleteGoal,
@@ -11,54 +12,51 @@ import {
   type GoalCreate,
   type GoalUpdate,
   type Sphere,
+  type GoalStatusRef,
 } from '@/lib/api'
 import { SphereFilter } from '@/components/SphereFilter'
-import { cn } from '@/lib/utils'
+import { cn, dateOnlyToUTC, utcToDateOnly, formatDateLocal } from '@/lib/utils'
 
-// ── Вспомогательные компоненты ───────────────────────
+// ── Конфигурация цветов для статусов (запас на случай отсутствия в справочнике) ──
 
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    active: 'bg-green-100 text-green-700',
-    completed: 'bg-blue-100 text-blue-700',
-    cancelled: 'bg-gray-100 text-gray-500',
-  }
-
-  const labels: Record<string, string> = {
-    active: 'Активна',
-    completed: 'Завершена',
-    cancelled: 'Отменена',
-  }
-
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
-        styles[status] ?? 'bg-gray-100 text-gray-600',
-      )}
-    >
-      {labels[status] ?? status}
-    </span>
-  )
+const STATUS_COLORS: Record<number, string> = {
+  1: '#22c55e', // active
+  2: '#3b82f6', // completed
+  3: '#ef4444', // cancelled
 }
 
-function ProgressBar({ value }: { value: number }) {
+const STATUS_LABELS: Record<number, string> = {
+  1: 'Активна',
+  2: 'Завершена',
+  3: 'Отменена',
+}
+
+// ── Компонент бейджа статуса ─────────────────────────
+
+function StatusBadge({
+  statusId,
+  statusName,
+  statusColor,
+}: {
+  statusId: number
+  statusName: string
+  statusColor: string | null
+}) {
+  const color = statusColor ?? STATUS_COLORS[statusId] ?? '#6b7280'
   return (
-    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-      <div
-        className={cn(
-          'h-full rounded-full transition-all duration-500',
-          value >= 100
-            ? 'bg-green-500'
-            : value >= 50
-              ? 'bg-blue-500'
-              : value > 0
-                ? 'bg-yellow-500'
-                : 'bg-gray-200',
-        )}
-        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+    <span
+      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium"
+      style={{
+        backgroundColor: `${color}18`,
+        color: color,
+      }}
+    >
+      <span
+        className="w-1.5 h-1.5 rounded-full"
+        style={{ backgroundColor: color }}
       />
-    </div>
+      {statusName}
+    </span>
   )
 }
 
@@ -68,6 +66,7 @@ interface GoalFormModalProps {
   mode: 'create' | 'edit'
   goal?: Goal
   spheres: Sphere[]
+  statuses: GoalStatusRef[]
   open: boolean
   onClose: () => void
   onSave: (data: GoalCreate | GoalUpdate) => void
@@ -78,6 +77,7 @@ function GoalFormModal({
   mode,
   goal,
   spheres,
+  statuses,
   open,
   onClose,
   onSave,
@@ -87,6 +87,7 @@ function GoalFormModal({
   const [title, setTitle] = useState(goal?.title ?? '')
   const [description, setDescription] = useState(goal?.description ?? '')
   const [deadline, setDeadline] = useState(goal?.deadline ?? '')
+  const [statusId, setStatusId] = useState(goal?.status_id ?? 1)
 
   const prevGoalRef = useRef(goal)
   const prevOpenRef = useRef(open)
@@ -98,6 +99,7 @@ function GoalFormModal({
       setTitle(goal?.title ?? '')
       setDescription(goal?.description ?? '')
       setDeadline(goal?.deadline ?? '')
+      setStatusId(goal?.status_id ?? 1)
     }
     prevGoalRef.current = goal
     prevOpenRef.current = open
@@ -110,11 +112,11 @@ function GoalFormModal({
     if (!sphereId || !title.trim()) return
 
     if (mode === 'create') {
-      onSave({
+            onSave({
         sphere_id: sphereId,
         title: title.trim(),
         description: description.trim() || null,
-        deadline: deadline ? new Date(deadline).toISOString() : null,
+        deadline: deadline || null,
       } satisfies GoalCreate)
     } else {
       const data: GoalUpdate = {}
@@ -122,8 +124,9 @@ function GoalFormModal({
       if (title !== goal?.title) data.title = title.trim()
       if (description !== (goal?.description ?? ''))
         data.description = description.trim() || null
-      if ((deadline || null) !== (goal?.deadline ?? null))
-        data.deadline = deadline ? new Date(deadline).toISOString() : null
+            if ((deadline || null) !== (goal?.deadline ?? null))
+        data.deadline = deadline || null
+      if (statusId !== goal?.status_id) data.status_id = statusId
       onSave(data)
     }
   }
@@ -135,6 +138,7 @@ function GoalFormModal({
           {mode === 'create' ? 'Добавить цель' : 'Редактировать цель'}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Сфера */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Сфера жизни
@@ -155,6 +159,8 @@ function GoalFormModal({
               ))}
             </select>
           </div>
+
+          {/* Название */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Название цели
@@ -168,6 +174,8 @@ function GoalFormModal({
               placeholder="Например: Накопить 1 млн на квартиру"
             />
           </div>
+
+          {/* Описание */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Описание
@@ -181,19 +189,48 @@ function GoalFormModal({
               placeholder="Описание цели (опционально)"
             />
           </div>
+
+          {/* Срок */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Срок достижения
             </label>
-            <input
+                        <input
               type="date"
-              value={deadline ? deadline.slice(0, 10) : ''}
-              onChange={(e) =>
-                setDeadline(e.target.value ? `${e.target.value}T23:59:59Z` : '')
-              }
+              value={deadline ? utcToDateOnly(deadline) : ''}
+              onChange={(e) => {
+                const val = e.target.value
+                if (!val) { setDeadline(''); return }
+                setDeadline(dateOnlyToUTC(val))
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
           </div>
+
+          {/* Статус (только в режиме редактирования) */}
+          {mode === 'edit' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Статус
+              </label>
+              <select
+                value={statusId}
+                onChange={(e) => setStatusId(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+              >
+                {statuses.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">
+                Можно вернуть в работу отменённую или завершённую цель
+              </p>
+            </div>
+          )}
+
+          {/* Кнопки */}
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
@@ -221,9 +258,9 @@ function GoalFormModal({
   )
 }
 
-// ── Диалог подтверждения ─────────────────────────────
+// ── Диалог подтверждения отмены ──────────────────────
 
-function ConfirmModal({
+function ConfirmCancelModal({
   goal,
   open,
   onClose,
@@ -244,7 +281,6 @@ function ConfirmModal({
         <h2 className="text-lg font-semibold mb-2">Отменить цель</h2>
         <p className="text-sm text-gray-600 mb-4">
           Вы уверены, что хотите отменить цель «{goal.title}»?
-          Связанные проекты и задачи не будут удалены.
         </p>
         <div className="flex justify-end gap-3">
           <button
@@ -277,20 +313,27 @@ export function GoalsPage() {
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>()
   const [deletingGoal, setDeletingGoal] = useState<Goal | null>(null)
   const [showAll, setShowAll] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<number | undefined>(undefined)
 
-  // Запрос списка сфер (для выпадающего списка и фильтра)
+  // Сферы
   const { data: spheres = [] } = useQuery({
     queryKey: ['spheres'],
     queryFn: getSpheres,
   })
 
-  // Запрос списка целей
-  const { data: goals = [], isLoading, isError, error } = useQuery({
-    queryKey: ['goals', showAll],
-    queryFn: () => getGoals({ show_all: showAll }),
+  // Статусы из справочника
+  const { data: statuses = [] } = useQuery({
+    queryKey: ['goalStatuses'],
+    queryFn: getGoalStatuses,
   })
 
-  // Мутация создания
+  // Цели
+  const { data: goals = [], isLoading, isError, error } = useQuery({
+    queryKey: ['goals', showAll, statusFilter],
+    queryFn: () => getGoals({ show_all: showAll, status_id: statusFilter }),
+  })
+
+  // Мутации
   const createMutation = useMutation({
     mutationFn: createGoal,
     onSuccess: () => {
@@ -299,7 +342,6 @@ export function GoalsPage() {
     },
   })
 
-  // Мутация обновления
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: GoalUpdate }) =>
       updateGoal(id, data),
@@ -310,7 +352,6 @@ export function GoalsPage() {
     },
   })
 
-  // Мутация удаления
   const deleteMutation = useMutation({
     mutationFn: deleteGoal,
     onSuccess: () => {
@@ -324,27 +365,11 @@ export function GoalsPage() {
     ? goals.filter((g) => g.sphere_code === filterCode)
     : goals
 
-  // Группировка по статусу
-  const activeGoals = filteredGoals.filter((g) => g.status === 'active')
-  const completedGoals = filteredGoals.filter((g) => g.status === 'completed')
-  const cancelledGoals = filteredGoals.filter((g) => g.status === 'cancelled')
-
-  const displayGoals =
-    showAll || modalMode === 'edit'
-      ? filteredGoals
-      : activeGoals
-
   const handleSave = (data: GoalCreate | GoalUpdate) => {
     if (modalMode === 'create') {
       createMutation.mutate(data as GoalCreate)
     } else if (modalMode === 'edit' && editingGoal) {
       updateMutation.mutate({ id: editingGoal.id, data })
-    }
-  }
-
-  const handleDelete = () => {
-    if (deletingGoal) {
-      deleteMutation.mutate(deletingGoal.id)
     }
   }
 
@@ -361,6 +386,16 @@ export function GoalsPage() {
   const closeModal = () => {
     setModalMode(null)
     setEditingGoal(undefined)
+  }
+
+  const handleCancelGoal = () => {
+    if (deletingGoal) {
+      updateMutation.mutate({
+        id: deletingGoal.id,
+        data: { status_id: 3 },
+      })
+      setDeletingGoal(null)
+    }
   }
 
   return (
@@ -399,16 +434,58 @@ export function GoalsPage() {
           </div>
         </header>
 
-        {/* Фильтр */}
-        <div className="mb-6">
+        {/* Фильтры */}
+        <div className="mb-6 space-y-3">
           <SphereFilter
             spheres={spheres}
             selected={filterCode}
-            onSelect={setFilterCode}
+            onSelect={(code) => {
+              setFilterCode(code)
+              setStatusFilter(undefined)
+              setShowAll(false)
+            }}
           />
+
+          {/* Быстрые фильтры по статусу (поверх показа "все") */}
+          {showAll && statuses.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => setStatusFilter(undefined)}
+                className={cn(
+                  'px-3 py-1 text-xs rounded-full border transition',
+                  statusFilter === undefined
+                    ? 'bg-gray-800 text-white border-gray-800'
+                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50',
+                )}
+              >
+                Все
+              </button>
+              {statuses.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setStatusFilter(s.id)}
+                  className={cn(
+                    'px-3 py-1 text-xs rounded-full border transition',
+                    statusFilter === s.id
+                      ? 'text-white border-transparent'
+                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50',
+                  )}
+                  style={
+                    statusFilter === s.id
+                      ? {
+                          backgroundColor: s.color ?? STATUS_COLORS[s.id] ?? '#6b7280',
+                        }
+                      : undefined
+                  }
+                >
+                  {s.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Состояния загрузки/ошибки */}
+        {/* Состояния */}
         {isLoading && (
           <div className="text-center py-12 text-gray-500">Загрузка...</div>
         )}
@@ -420,8 +497,7 @@ export function GoalsPage() {
           </div>
         )}
 
-        {/* Секция активных целей */}
-        {!isLoading && !isError && displayGoals.length === 0 && (
+        {!isLoading && !isError && filteredGoals.length === 0 && (
           <div className="text-center py-12 text-gray-400">
             {filterCode
               ? 'Нет целей в этой сфере'
@@ -429,139 +505,108 @@ export function GoalsPage() {
           </div>
         )}
 
-        {!isLoading && !isError && displayGoals.length > 0 && (
+        {!isLoading && !isError && filteredGoals.length > 0 && (
           <div className="grid gap-4 md:grid-cols-2">
-            {displayGoals.map((goal) => (
-              <div
-                key={goal.id}
-                className={cn(
-                  'bg-white rounded-xl shadow-sm border p-5 flex flex-col gap-3',
-                  goal.status === 'completed' && 'border-blue-200',
-                  goal.status === 'cancelled' && 'border-gray-200 opacity-60',
-                )}
-              >
-                {/* Верхняя строка: код сферы + статус */}
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="w-10 h-10 rounded-lg bg-primary/10 text-primary font-bold flex items-center justify-center text-lg">
-                      {goal.sphere_code}
-                    </span>
-                    <div>
-                      <h3 className="font-medium text-gray-900">{goal.title}</h3>
-                      <p className="text-xs text-gray-400">{goal.sphere_name}</p>
-                    </div>
-                  </div>
-                  <StatusBadge status={goal.status} />
-                </div>
+            {filteredGoals.map((goal) => {
+              const color = goal.status_color ?? STATUS_COLORS[goal.status_id] ?? '#6b7280'
+              const isActive = goal.status_id === 1
+              const isCancelled = goal.status_id === 3
 
-                {/* Делайн */}
-                {goal.deadline && (
-                  <div className="text-xs text-gray-500">
-                    Срок:{' '}
-                    {new Date(goal.deadline).toLocaleDateString('ru-RU', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                    })}
-                  </div>
-                )}
-
-                {/* Прогресс */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>Прогресс</span>
-                    <span>{Math.round(goal.progress)}%</span>
-                  </div>
-                  <ProgressBar value={goal.progress} />
-                </div>
-
-                {/* Индикатор активных проектов */}
-                {goal.has_active_projects && (
-                  <div className="flex items-center gap-1 text-xs text-green-600">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                    Есть активные проекты
-                  </div>
-                )}
-
-                {/* Кнопки действий */}
-                <div className="flex gap-2 pt-1 border-t border-gray-100">
-                  <button
-                    onClick={() => openEditModal(goal)}
-                    className="flex-1 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-                  >
-                    Редактировать
-                  </button>
-                  {goal.status === 'active' && (
-                    <button
-                      onClick={() => setDeletingGoal(goal)}
-                      className="flex-1 px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition"
-                    >
-                      Отменить
-                    </button>
+              return (
+                <div
+                  key={goal.id}
+                  className={cn(
+                    'bg-white rounded-xl shadow-sm border p-5 flex flex-col gap-3 transition',
+                    isCancelled && 'opacity-60',
                   )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Секция завершённых и отменённых (если showAll) */}
-        {showAll && (completedGoals.length > 0 || cancelledGoals.length > 0) && (
-          <div className="mt-8 space-y-2">
-            {completedGoals.length > 0 && (
-              <div>
-                <h2 className="text-sm font-medium text-blue-600 mb-3">
-                  Завершённые ({completedGoals.length})
-                </h2>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {completedGoals.map((goal) => (
-                    <div
-                      key={goal.id}
-                      className="bg-white rounded-lg border border-blue-200 p-4 opacity-80"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="w-8 h-8 rounded bg-blue-50 text-blue-600 font-bold flex items-center justify-center text-sm">
-                          {goal.sphere_code}
-                        </span>
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">
-                            {goal.title}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            Прогресс: {Math.round(goal.progress)}%
-                          </p>
-                        </div>
+                  style={{
+                    borderColor: isActive ? `${color}40` : undefined,
+                  }}
+                >
+                  {/* Верхняя строка: код сферы + статус */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="w-10 h-10 rounded-lg font-bold flex items-center justify-center text-lg"
+                        style={{
+                          backgroundColor: `${color}18`,
+                          color: color,
+                        }}
+                      >
+                        {goal.sphere_code}
+                      </span>
+                      <div>
+                        <h3 className="font-medium text-gray-900">{goal.title}</h3>
+                        <p className="text-xs text-gray-400">{goal.sphere_name}</p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                    <StatusBadge
+                      statusId={goal.status_id}
+                      statusName={goal.status_name}
+                      statusColor={goal.status_color}
+                    />
+                  </div>
 
-            {cancelledGoals.length > 0 && (
-              <div>
-                <h2 className="text-sm font-medium text-gray-500 mb-3 mt-6">
-                  Отменённые ({cancelledGoals.length})
-                </h2>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {cancelledGoals.map((goal) => (
-                    <div
-                      key={goal.id}
-                      className="bg-white rounded-lg border border-gray-200 p-4 opacity-50"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="w-8 h-8 rounded bg-gray-50 text-gray-500 font-bold flex items-center justify-center text-sm">
-                          {goal.sphere_code}
-                        </span>
-                        <p className="text-sm text-gray-500 line-through">
-                          {goal.title}
-                        </p>
-                      </div>
+                  {/* Описание */}
+                  {goal.description && (
+                    <p className="text-sm text-gray-500 line-clamp-2">
+                      {goal.description}
+                    </p>
+                  )}
+
+                  {/* Дедлайн */}
+                                    {goal.deadline && (
+                    <div className="text-xs text-gray-500">
+                      Срок: {formatDateLocal(goal.deadline)}
                     </div>
-                  ))}
+                  )}
+
+                  {/* Кнопки действий */}
+                  <div className="flex gap-2 pt-1 border-t border-gray-100">
+                    <button
+                      onClick={() => openEditModal(goal)}
+                      className="flex-1 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+                    >
+                      {isActive ? 'Редактировать' : 'Открыть'}
+                    </button>
+                    {isActive && (
+                      <button
+                        onClick={() => setDeletingGoal(goal)}
+                        className="flex-1 px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition"
+                      >
+                        Отменить
+                      </button>
+                    )}
+                    {goal.status_id === 2 && (
+                      <button
+                        onClick={() =>
+                          updateMutation.mutate({
+                            id: goal.id,
+                            data: { status_id: 1 },
+                          })
+                        }
+                        className="flex-1 px-3 py-1.5 text-sm text-green-600 border border-green-200 rounded-lg hover:bg-green-50 transition"
+                      >
+                        Вернуть в работу
+                      </button>
+                    )}
+                    {goal.status_id === 3 && (
+                      <button
+                        onClick={() =>
+                          updateMutation.mutate({
+                            id: goal.id,
+                            data: { status_id: 1 },
+                          })
+                        }
+                        className="flex-1 px-3 py-1.5 text-sm text-green-600 border border-green-200 rounded-lg hover:bg-green-50 transition"
+                      >
+                        Вернуть в работу
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )
+            })}
           </div>
         )}
       </div>
@@ -571,18 +616,19 @@ export function GoalsPage() {
         mode={modalMode === 'create' ? 'create' : 'edit'}
         goal={editingGoal}
         spheres={spheres}
+        statuses={statuses}
         open={modalMode !== null}
         onClose={closeModal}
         onSave={handleSave}
         isSaving={createMutation.isPending || updateMutation.isPending}
       />
 
-      <ConfirmModal
+      <ConfirmCancelModal
         goal={deletingGoal}
         open={deletingGoal !== null}
         onClose={() => setDeletingGoal(null)}
-        onConfirm={handleDelete}
-        isDeleting={deleteMutation.isPending}
+        onConfirm={handleCancelGoal}
+        isDeleting={false}
       />
     </main>
   )

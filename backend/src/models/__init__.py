@@ -11,8 +11,7 @@ from .base import BaseModel, UserOwnedModel
 # Import all models here (order matters for FK dependencies)
 from .user import User
 from .sphere import Sphere, SphereSatisfactionHistory
-from .goal import Goal
-from .project import Project
+from .goal import Goal, GoalStatusRef
 
 # Optional: export for convenient imports elsewhere
 __all__ = [
@@ -22,5 +21,5 @@ __all__ = [
     "Sphere",
     "SphereSatisfactionHistory",
     "Goal",
-    "Project",
+    "GoalStatusRef",
 ]

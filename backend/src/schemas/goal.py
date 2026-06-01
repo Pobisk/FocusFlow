@@ -6,19 +6,32 @@ from datetime import datetime
 from typing import Optional
 
 
+class GoalStatusRead(BaseModel):
+    """Схема для чтения статуса цели из справочника."""
+
+    id: int
+    code: str
+    name: str
+    sort_order: int
+    color: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
 class GoalRead(BaseModel):
     """Схема для чтения цели."""
 
     id: UUID
     sphere_id: UUID
-    sphere_code: str  # из join со Sphere
+    sphere_code: str
     sphere_name: str
     title: str
     description: Optional[str] = None
     deadline: Optional[datetime] = None
-    status: str
-    progress: float  # вычисляемое поле: процент завершённых проектов/задач
-    has_active_projects: bool  # есть ли активные проекты/задачи
+    status_id: int
+    status_code: str
+    status_name: str
+    status_color: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -40,5 +53,5 @@ class GoalUpdate(BaseModel):
     title: Optional[str] = Field(default=None, max_length=300)
     description: Optional[str] = Field(default=None, max_length=2000)
     deadline: Optional[datetime] = None
-    status: Optional[str] = None  # "active" | "completed" | "cancelled"
+    status_id: Optional[int] = None  # 1-активна, 2-завершена, 3-отменена
     sphere_id: Optional[UUID] = None

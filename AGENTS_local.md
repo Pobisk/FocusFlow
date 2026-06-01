@@ -48,62 +48,6 @@ docker compose logs --tail 20 frontend
 docker compose -f docker-compose.yml -f docker-compose.dev.yml exec backend alembic upgrade head
 ```
 
-### Проблема: ENUM vs VARCHAR (⚠️ главный грабли!)
-
-Когда поле модели — `Enum(str, Enum)`, SQLAlchemy может создать кастомный ENUM-тип в PostgreSQL при `create_all()`. Тогда обычный `SELECT` с `WHERE status = 'active'` упадёт с ошибкой:
-
-```
-UndefinedObjectError: type "goalstatus" does not exist
-```
-
-**Причина:** `create_all()` создал ENUM, а миграция через Alembic идёт с `AutoString()`. Разные типы → ошибка.
-
-**Решение: всегда явно указывать `sa_type=String(...)` для Enum-полей:**
-
-```python
-# ✅ ПРАВИЛЬНО:
-status: MyEnum = Field(
-    nullable=False,
-    default=MyEnum.VALUE,
-    sa_type=String(20),  # ← всегда! не даёт SQLAlchemy создать ENUM
-)
-
-# ❌ НЕПРАВИЛЬНО (создаёт ENUM в БД):
-status: MyEnum = Field(
-    nullable=False,
-    default=MyEnum.VALUE,
-    # нет sa_type — SQLAlchemy сам решит, что это ENUM
-)
-```
-
-**Список полей, где уже стоит `sa_type`:**
-- `Goal.status` → `String(20)`
-- `Project.status` → `String(20)`
-- `Project.project_type` → `String(20)`
-
-**Если ошибка уже случилась — чинить так:**
-
-```powershell
-# 1. Удалить таблицу
-docker compose exec postgres psql -U focusflow -d focusflow_db -c "DROP TABLE IF EXISTS <table> CASCADE;"
-
-# 2. Удалить ENUM-тип (если создался)
-docker compose exec postgres psql -U focusflow -d focusflow_db -c "DROP TYPE IF EXISTS <enum_name>;"
-
-# 3. Исправить модель (добавить sa_type=String(...))
-
-# 4. Перезапустить бэкенд (чтобы перезагрузил модели)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml restart backend
-
-# 5. Пересоздать таблицу
-docker compose exec backend python -c "
-import asyncio
-from sqlmodel import SQLModel
-from db.session import async_engine
-from models import *
-asyncio.run(SQLModel.metadata.create_all(async_engine))
-"
-```
 
 ## 🔄 Volumes в dev-режиме
 
@@ -160,7 +104,7 @@ docker compose exec backend python -m src.db.init_db --reset --create
 ## ✅ Чеклист при добавлении новой модели
 
 - [ ] Модель наследуется от `UserOwnedModel` (бизнес-сущности) или `BaseModel` (системные)
-- [ ] У полей-перечислений (Enum) обязательно стоит `sa_type=String(N)`
+- [ ] Для полей-справочников (status, type) создана справочная таблица с Integer PK
 - [ ] Модель зарегистрирована в `backend/src/models/__init__.py`
 - [ ] Эндпоинт зарегистрирован в `backend/src/main.py`
 - [ ] Создана миграция через `alembic revision --autogenerate`
@@ -174,6 +118,6 @@ docker compose exec backend python -m src.db.init_db --reset --create
 |---|---|---|
 | `SIGBUS` при `npm run dev` в Docker | Проблема node_modules на WSL | `docker compose down`, удалить volume, `up --build` |
 | `ModuleNotFoundError: models.project` | Новый файл создан, но контейнер не перезагружен | `restart backend` |
-| `type "goalstatus" does not exist` | Enum-поле без `sa_type` | Добавить `sa_type=String(20)`, сбросить таблицу |
+| `type "goalstatus" does not exist` | SQLAlchemy создал ENUM вместо справочной таблицы | Использовать Integer FK, а не `sa_type=String` |
 | `AttributeError: 'str' object has no attribute 'value'` | refresh вернул строку вместо Enum | Проверить `isinstance(..., str) else .value` |
 | `pip install` таймаут при билде | Проблемы сети | Использовать `exec backend alembic upgrade head` вместо пересборки |
