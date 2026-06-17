@@ -1,4 +1,5 @@
-Авторизация
+Авторизация - уже реализовано
+
 Ты опытный разработчик питон + react с опытом 10+
 наш репозиторий https://github.com/Pobisk/FocusFlow/
 используй рекомендации https://github.com/Pobisk/FocusFlow/blob/main/AGENTS.md
