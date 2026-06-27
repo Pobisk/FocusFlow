@@ -7,6 +7,8 @@ import { GoalsPage } from '@/pages/GoalsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ProjectsPage } from '@/pages/ProjectsPage'
 import { ProjectEditPage } from '@/pages/ProjectEditPage'
+import { TasksPage } from '@/pages/TasksPage'
+import { TaskEditPage } from '@/pages/TaskEditPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 
 const queryClient = new QueryClient()
@@ -24,6 +26,8 @@ export function App() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/projects/:id" element={<ProjectEditPage />} />
+            <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/tasks/:id" element={<TaskEditPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

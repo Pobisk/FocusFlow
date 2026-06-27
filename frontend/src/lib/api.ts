@@ -357,10 +357,14 @@ export async function getProjectStatuses(): Promise<ProjectStatusRef[]> {
 export async function getProjects(params?: {
   sphere_id?: string
   show_all?: boolean
+  interval_start?: string
+  interval_end?: string
 }): Promise<Project[]> {
   const searchParams = new URLSearchParams()
   if (params?.sphere_id) searchParams.set('sphere_id', params.sphere_id)
   if (params?.show_all) searchParams.set('show_all', 'true')
+  if (params?.interval_start) searchParams.set('interval_start', params.interval_start)
+  if (params?.interval_end) searchParams.set('interval_end', params.interval_end)
 
   const query = searchParams.toString()
   return apiFetch<Project[]>(`/projects${query ? `?${query}` : ''}`)
@@ -386,6 +390,134 @@ export async function updateProject(projectId: string, data: ProjectUpdate): Pro
 
 export async function deleteProject(projectId: string): Promise<void> {
   await apiFetch<void>(`/projects/${projectId}`, {
+    method: 'DELETE',
+  })
+}
+
+// ── Task API ──────────────────────────────────────
+
+export interface TaskStatusRef {
+  id: number
+  code: string
+  name: string
+  sort_order: number
+  color: string | null
+}
+
+export interface Task {
+  id: string
+  sphere_id: string
+  sphere_code: string
+  sphere_name: string
+  project_id: string | null
+  project_title: string | null
+  goal_id: string | null
+  goal_title: string | null
+  title: string
+  description: string | null
+  is_appointment: boolean
+  start_date: string
+  finish_date: string
+  appointment_at: string | null
+  travel_time: number | null
+  duration: number
+  importance: number
+  consequences: number
+  progress: number
+  delay_to: string | null
+  refusal_count: number
+  status_id: number
+  status_code: string
+  status_name: string
+  status_color: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface TaskCreate {
+  sphere_id: string
+  project_id?: string | null
+  goal_id?: string | null
+  title: string
+  description?: string | null
+  is_appointment?: boolean
+  start_date: string
+  finish_date: string
+  appointment_at?: string | null
+  travel_time?: number | null
+  duration?: number
+  importance?: number
+  consequences?: number
+  progress?: number
+  delay_to?: string | null
+  refusal_count?: number
+  status_id?: number
+}
+
+export interface TaskUpdate {
+  title?: string
+  description?: string | null
+  start_date?: string
+  finish_date?: string
+  appointment_at?: string | null
+  travel_time?: number | null
+  duration?: number
+  importance?: number
+  consequences?: number
+  progress?: number
+  delay_to?: string | null
+  refusal_count?: number
+  status_id?: number
+  sphere_id?: string
+  goal_id?: string | null
+}
+
+export async function getTaskStatuses(): Promise<TaskStatusRef[]> {
+  return apiFetch<TaskStatusRef[]>('/tasks/statuses')
+}
+
+export async function getTasks(params?: {
+  sphere_id?: string
+  project_id?: string
+  show_all?: boolean
+  only_standalone?: boolean
+  only_appointments?: boolean
+  interval_start?: string
+  interval_end?: string
+}): Promise<Task[]> {
+  const searchParams = new URLSearchParams()
+  if (params?.sphere_id) searchParams.set('sphere_id', params.sphere_id)
+  if (params?.project_id) searchParams.set('project_id', params.project_id)
+  if (params?.show_all) searchParams.set('show_all', 'true')
+  if (params?.only_standalone) searchParams.set('only_standalone', 'true')
+  if (params?.only_appointments) searchParams.set('only_appointments', 'true')
+  if (params?.interval_start) searchParams.set('interval_start', params.interval_start)
+  if (params?.interval_end) searchParams.set('interval_end', params.interval_end)
+
+  const query = searchParams.toString()
+  return apiFetch<Task[]>(`/tasks${query ? `?${query}` : ''}`)
+}
+
+export async function getTask(taskId: string): Promise<Task> {
+  return apiFetch<Task>(`/tasks/${taskId}`)
+}
+
+export async function createTask(data: TaskCreate): Promise<Task> {
+  return apiFetch<Task>('/tasks', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateTask(taskId: string, data: TaskUpdate): Promise<Task> {
+  return apiFetch<Task>(`/tasks/${taskId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteTask(taskId: string): Promise<void> {
+  await apiFetch<void>(`/tasks/${taskId}`, {
     method: 'DELETE',
   })
 }

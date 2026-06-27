@@ -30,18 +30,19 @@ async def _read_status_ref(db: AsyncSession, status_id: int) -> ProjectStatusRef
     )
 
 
+from models.task import Task
+
+
 async def _has_active_task(project_id: UUID, db: AsyncSession) -> bool:
     """Проверяет, есть ли у проекта хотя бы одна активная задача."""
-    # Пока возвращаем False — будет реализовано после создания Task
-    # result = await db.execute(
-    #     select(func.count(Task.id)).where(
-    #         Task.project_id == project_id,
-    #         Task.status_id == 1,  # TaskStatus.ACTIVE
-    #     )
-    # )
-    # count = result.scalar() or 0
-    # return count > 0
-    return False
+    result = await db.execute(
+        select(func.count(Task.id)).where(
+            Task.project_id == project_id,
+            Task.status_id == 1,  # TaskStatus.ACTIVE
+        )
+    )
+    count = result.scalar() or 0
+    return count > 0
 
 
 def _calc_speed(project: Project, now: datetime) -> float | None:
@@ -152,6 +153,12 @@ async def get_project_statuses(
 
 @router.get("", response_model=list[ProjectRead])
 async def get_projects(
+    interval_start: datetime | None = Query(
+        default=None, description="Первый день интервала (UTC), 00:00"
+    ),
+    interval_end: datetime | None = Query(
+        default=None, description="Последний день интервала (UTC), 00:00"
+    ),
     sphere_id: UUID | None = None,
     show_all: bool = False,
     user_id: UUID = Depends(get_current_user_id),
@@ -161,8 +168,10 @@ async def get_projects(
     Получить список проектов пользователя.
 
     🔐 Требует авторизацию (JWT Bearer token)
-    📋 Фильтрация: по сфере (sphere_id), по статусам (show_all)
+    📋 Фильтрация: по интервалу (interval_start, interval_end), по сфере (sphere_id), по статусам (show_all)
     📋 По умолчанию — только активные проекты
+    🔍 Фильтр по интервалу:
+       "finish_date" >= interval_start AND "start_date" <= interval_end
     """
     now = datetime.now(timezone.utc)
 
@@ -170,6 +179,13 @@ async def get_projects(
 
     if sphere_id:
         statement = statement.where(Project.sphere_id == sphere_id)
+
+    if interval_start and interval_end:
+        # finish_date >= interval_start AND start_date <= interval_end
+        statement = statement.where(
+            Project.finish_date >= interval_start,
+            Project.start_date <= interval_end,
+        )
 
     if not show_all:
         # По умолчанию — только активные (status_id = 1)

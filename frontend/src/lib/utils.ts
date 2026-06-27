@@ -51,3 +51,18 @@ export function formatDateLocal(isoString: string): string {
   })
 }
 
+/**
+ * Форматирует UTC ISO-строку в дату и время (локальный часовой пояс).
+ * Формат: dd.MM.yyyy HH:mm
+ * Использование: для отображения delay_to.
+ */
+export function formatDateTimeLocal(isoString: string): string {
+  const d = new Date(isoString)
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const year = d.getFullYear()
+  const hours = String(d.getHours()).padStart(2, '0')
+  const minutes = String(d.getMinutes()).padStart(2, '0')
+  return `${day}.${month}.${year} ${hours}:${minutes}`
+}
+

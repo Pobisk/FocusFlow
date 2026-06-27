@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { useSphereFilter } from '@/hooks/useSphereFilter'
 import { getProjects, getSpheres, type Project } from '@/lib/api'
+import { IntervalFilter, type IntervalValue } from '@/components/IntervalFilter'
+import { dateOnlyToUTC } from '@/lib/utils'
 
 export function ProjectsPage() {
   const navigate = useNavigate()
   const [showAll, setShowAll] = useState(false)
   const [selectedSphere, setSelectedSphere] = useState<string | null>(null)
+  const [interval, setInterval] = useState<IntervalValue | null>(null)
 
   const { data: spheres = [] } = useQuery({
     queryKey: ['spheres'],
@@ -15,12 +17,18 @@ export function ProjectsPage() {
   })
 
   const { data: projects = [], isLoading, isError, error } = useQuery({
-    queryKey: ['projects', selectedSphere, showAll],
-    queryFn: () =>
-      getProjects({
-        sphere_id: selectedSphere ?? undefined,
-        show_all: showAll || undefined,
-      }),
+    queryKey: ['projects', selectedSphere, showAll, interval],
+    queryFn: () => {
+      const params: Record<string, string | undefined> = {}
+      if (selectedSphere) params.sphere_id = selectedSphere
+      if (showAll) params.show_all = 'true'
+      if (interval) {
+        // Конвертируем локальные даты в UTC для отправки на бэк
+        params.interval_start = dateOnlyToUTC(interval.start)
+        params.interval_end = dateOnlyToUTC(interval.end)
+      }
+      return getProjects(params as any)
+    },
   })
 
   // Фильтрация по сферам выполняется на бэке через sphere_id
@@ -42,16 +50,16 @@ export function ProjectsPage() {
               ← Назад
             </button>
             <h1 className="text-2xl font-bold text-gray-900">Проекты</h1>
-            <p className="text-gray-600 mt-1 text-sm">
-              Список проектов. По умолчанию — активные на текущую неделю.
-            </p>
           </div>
-          <button
-            onClick={() => navigate('/projects/new')}
-            className="px-4 py-2 text-sm text-white bg-primary rounded-lg hover:bg-primary/90 transition"
-          >
-            + Добавить
-          </button>
+          <div className="flex items-center gap-4">
+            <IntervalFilter defaultType="week" onChange={setInterval} />
+            <button
+              onClick={() => navigate('/projects/new')}
+              className="px-4 py-2 text-sm text-white bg-primary rounded-lg hover:bg-primary/90 transition shrink-0"
+            >
+              + Добавить
+            </button>
+          </div>
         </header>
 
         {/* Фильтр по сферам */}

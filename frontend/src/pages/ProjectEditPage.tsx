@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { dateOnlyToUTC, utcToDateOnly } from '@/lib/utils'
+import { dateOnlyToUTC, utcToDateOnly, formatDateTimeLocal } from '@/lib/utils'
 import {
   getProject,
   createProject,
@@ -9,6 +9,7 @@ import {
   getSpheres,
   getGoals,
   getProjectStatuses,
+  getTasks,
   type ProjectCreate,
   type ProjectUpdate,
 } from '@/lib/api'
@@ -43,6 +44,13 @@ export function ProjectEditPage() {
   const { data: project, isLoading: isProjectLoading } = useQuery({
     queryKey: ['project', id],
     queryFn: () => getProject(id!),
+    enabled: !isNew,
+  })
+
+  // ── Список задач проекта (если редактируем) ────────
+  const { data: projectTasks = [] } = useQuery({
+    queryKey: ['projectTasks', id],
+    queryFn: () => getTasks({ project_id: id!, show_all: true }),
     enabled: !isNew,
   })
 
@@ -341,6 +349,88 @@ export function ProjectEditPage() {
               <span>100%</span>
             </div>
           </div>
+
+          {/* ── Список задач проекта (только для редактирования) ── */}
+          {!isNew && (
+            <div className="pt-4 border-t">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-medium text-gray-700">Задачи проекта</h2>
+                <button
+                  onClick={() =>
+                    navigate(
+                      `/tasks/new?project_id=${id}&sphere_id=${sphereId}&goal_id=${goalId || ''}`,
+                    )
+                  }
+                  className="px-3 py-1.5 text-xs text-white bg-primary rounded-lg hover:bg-primary/90 transition"
+                >
+                  + Добавить задачу
+                </button>
+              </div>
+
+              {projectTasks.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">
+                  В проекте пока нет задач
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-gray-50">
+                        <th className="text-left px-3 py-2 font-medium text-gray-700">
+                          Название
+                        </th>
+                        <th className="text-center px-3 py-2 font-medium text-gray-700 w-24">
+                          Статус
+                        </th>
+                        <th className="text-center px-3 py-2 font-medium text-gray-700 w-16">
+                          Прогресс
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {projectTasks.map((task) => {
+                        const appointmentSuffix = task.is_appointment && task.appointment_at
+                          ? ` ${formatDateTimeLocal(task.appointment_at)}${task.travel_time ? ` (дорога ${task.travel_time})` : ''}`
+                          : ''
+                        return (
+                        <tr key={task.id} className="border-b last:border-b-0 hover:bg-gray-50 transition">
+                          <td className="px-3 py-2">
+                            <button
+                              onClick={() => navigate(`/tasks/${task.id}`)}
+                              className="text-primary hover:text-primary/80 hover:underline text-left"
+                            >
+                              {task.is_appointment && <span className="text-sm">🕑</span>}
+                              <span>{task.title}</span>
+                              {appointmentSuffix && (
+                                <span className="text-gray-500 text-xs ml-1">{appointmentSuffix}</span>
+                              )}
+                            </button>
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <span
+                              className="inline-block px-2 py-0.5 text-xs rounded-full"
+                              style={{
+                                backgroundColor: task.status_color
+                                  ? `${task.status_color}20`
+                                  : undefined,
+                                color: task.status_color ?? undefined,
+                              }}
+                            >
+                              {task.status_name}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-center font-mono text-gray-700">
+                            {task.progress}%
+                          </td>
+                        </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Кнопки */}
           <div className="pt-4 border-t flex items-center justify-between flex-wrap gap-2">
