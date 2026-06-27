@@ -87,6 +87,15 @@ export function WorkspacePage() {
               Список всех задач
             </p>
           </button>
+          <button
+            onClick={() => navigate('/someday')}
+            className="p-4 bg-white rounded-lg shadow-sm border text-left hover:shadow-md transition cursor-pointer"
+          >
+            <h3 className="font-medium mb-1">💭 КНМБ</h3>
+            <p className="text-sm text-gray-500">
+              Когда-нибудь может быть
+            </p>
+          </button>
           <div className="p-4 bg-white rounded-lg shadow-sm border opacity-50">
             <h3 className="font-medium mb-2">📊 Отчёт</h3>
             <p className="text-sm text-gray-500">

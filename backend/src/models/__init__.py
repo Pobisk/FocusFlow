@@ -7,6 +7,7 @@ from .sphere import Sphere, SphereSatisfactionHistory
 from .goal import Goal, GoalStatusRef
 from .user_settings import UserSettings
 from .project import Project, ProjectStatusRef
+from .someday import SomedayMaybe
 from .task import Task, TaskStatusRef
 from .task_log import TaskLog
 
@@ -22,6 +23,7 @@ __all__ = [
     "GoalStatusRef",
     "Project",
     "ProjectStatusRef",
+    "SomedayMaybe",
     "Task",
     "TaskStatusRef",
     "TaskLog",

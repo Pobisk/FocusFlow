@@ -546,3 +546,54 @@ export async function upsertTaskLog(
     body: JSON.stringify(data),
   })
 }
+
+// ── SomedayMaybe API ───────────────────────────
+
+export interface SomedayMaybe {
+  id: string
+  sphere_id: string
+  sphere_code: string
+  title: string
+  description: string | null
+  is_active: boolean
+  days_exist: number | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SomedayMaybeCreate {
+  sphere_id: string
+  title: string
+  description?: string | null
+  is_active?: boolean
+}
+
+export interface SomedayMaybeUpdate {
+  sphere_id: string
+  title: string
+  description?: string | null
+  is_active: boolean
+}
+
+export async function getSomedayList(showAll?: boolean): Promise<SomedayMaybe[]> {
+  const params = showAll ? '?show_all=true' : ''
+  return apiFetch<SomedayMaybe[]>(`/someday${params}`)
+}
+
+export async function createSomeday(data: SomedayMaybeCreate): Promise<SomedayMaybe> {
+  return apiFetch<SomedayMaybe>('/someday', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function getSomeday(id: string): Promise<SomedayMaybe> {
+  return apiFetch<SomedayMaybe>(`/someday/${id}`)
+}
+
+export async function updateSomeday(id: string, data: SomedayMaybeUpdate): Promise<SomedayMaybe> {
+  return apiFetch<SomedayMaybe>(`/someday/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}

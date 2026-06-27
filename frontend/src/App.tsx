@@ -9,6 +9,7 @@ import { ProjectsPage } from '@/pages/ProjectsPage'
 import { ProjectEditPage } from '@/pages/ProjectEditPage'
 import { TasksPage } from '@/pages/TasksPage'
 import { TaskEditPage } from '@/pages/TaskEditPage'
+import { SomedayPage } from '@/pages/SomedayPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 
 const queryClient = new QueryClient()
@@ -28,6 +29,7 @@ export function App() {
             <Route path="/projects/:id" element={<ProjectEditPage />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/tasks/:id" element={<TaskEditPage />} />
+            <Route path="/someday" element={<SomedayPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

@@ -90,22 +90,81 @@ class SystemEntity(BaseModel, table=True):
     name: str = Field(max\_length=100, index=True)
 ```
 
-#### ✅ DO: Migration File
+#### 🚨 Workflow: Правильный порядок создания новой таблицы
+
+**Запомнить:** Никогда не писать миграцию вручную. Только autogenerate.
+
+```bash
+# Шаг 1 — Создать модель в backend/src/models/your_model.py
+#   - наследовать UserOwnedModel (или BaseModel для системных)
+#   - импортировать в models/__init__.py
+
+# Шаг 2 — Проверить, что все FK ссылаются на существующие таблицы (AGENTS.md → § "Проверка ForeignKey")
+
+# Шаг 3 — Создать схему в backend/src/schemas/your_model.py
+
+# Шаг 4 — Подключить в main.py и __init__.py
+
+# Шаг 5 — Сгенерировать миграцию:
+docker compose exec backend alembic revision --autogenerate -m "create your_model table"
+
+# Шаг 6 — Проверить сгенерированный файл (корректность FK, типов)
+#   - заменить models.base.UTCDateTime() → sa.DateTime(timezone=True)
+#   - заменить sqlmodel.sql.sqltypes.AutoString(...) → sa.String(...)
+
+# Шаг 7 — Применить:
+docker compose exec backend alembic upgrade head
+
+# Шаг 8 — Перезапустить бэкенд
+docker compose restart backend
+```
+
+#### ❌ Чинить миграцию вручную запрещено
+
+Если autogenerate сгенерировал неправильно — **не редактировать файл вручную**.
+
+Правильная последовательность при ошибке:
+
+```bash
+# 1. Откатить миграцию
+docker compose exec backend alembic downgrade -1
+
+# 2. Исправить МОДЕЛЬ (не миграцию!)
+#    правим backend/src/models/your_model.py
+
+# 3. Удалить старый файл миграции
+rm backend/alembic/versions/xxx_old_migration.py
+
+# 4. Сгенерировать заново
+docker compose exec backend alembic revision --autogenerate -m "create your_model table"
+
+# 5. Применить
+docker compose exec backend alembic upgrade head
+```
+
+**Никогда:** править миграцию вручную, плодить временные скрипты (drop/create), чинить через SQL.
+
+#### 🧪 Проверка ForeignKey
+
+Перед созданием модели **обязательно** проверить, как устроена сущность, на которую ссылается FK:
+- Какой тип её PK? (обычно `UUID`, но может быть `int` для справочников)
+- Как называется её таблица?
+- Есть ли `ondelete`?
 
 ```python
-# alembic/versions/xxx\_create\_your\_model.py
-import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID  # ← For clarity
+# ✅ ПРАВИЛЬНО — глянуть на модель-донор:
+# backend/src/models/sphere.py
+class Sphere(UserOwnedModel, table=True):
+    __tablename__ = "spheres"
+    # id — UUID v7 (унаследовано)
 
-def upgrade():
-    op.create\_table(
-        "your\_model",
-        sa.Column("id", sa.Uuid(), nullable=False),  # ✅ CORRECT: 16 bytes, native type
-        sa.Column("name", sa.String(length=100), nullable=False),
-        sa.Column("owner\_id", sa.Uuid(), nullable=False),  # ✅ Foreign key also UUID
-        sa.PrimaryKeyConstraint("id"),
-        sa.ForeignKeyConstraint(\["user\_id"], \["users.id"], ondelete="CASCADE"),
-    )
+# → FK пишем:
+sphere_id: UUID = Field(foreign_key="spheres.id", nullable=False, index=True)
+```
+
+```python
+# ❌ НЕПРАВИЛЬНО — придумать тип "из головы":
+sphere_id: str = Field(...)  # ← WRONG: не соответствует модели Sphere
 ```
 
 #### ❌ DON'T: Common Mistakes
@@ -123,6 +182,9 @@ sa.Column("id", sa.String(length=36))  # ← WRONG: 36 bytes, slow indexes
 
 # ❌ Never forget table=True:
 class YourModel(UserOwnedModel):  # ← WRONG: missing table=True → not registered in DB
+
+# ❌ Never "invent" a FK type from memory — always check the target model:
+#    (см. 🧪 Проверка ForeignKey выше)
 ```
 
 ### 🏷 Справочные таблицы (Status, Type, и пр.)
@@ -317,6 +379,11 @@ created_at: datetime = Field(default_factory=...)  # ← ОШИБКА: буде�
 2. После генерации: запустить линтеры (`ruff`, `eslint`) и тип-чекеры (`pyright`, `tsc --noEmit`)
 3. Для новых эндпоинтов: обновить `openapi.json` → перегенерировать TS-клиент
 4. Коммиты: использовать конвенцию `feat:`, `fix:`, `chore:`, `refactor:`
+5. **При создании новой таблицы:**
+   - Сначала посмотреть, как устроены похожие модели (FK, типы полей) — не выдумывать «из головы»
+   - Создавать миграцию ТОЛЬКО через `alembic revision --autogenerate`
+   - Никогда не править миграцию вручную; если ошибка — исправить модель, удалить старую миграцию, перегенерировать
+   - Не плодить временные скрипты (drop/create/fix); есть alembic downgrade/upgrade
 
 ## 🧪 Тестирование
 
