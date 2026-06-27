@@ -65,14 +65,16 @@ class ReferenceModel(SQLModel):
     Без created_at/updated_at, без автоинкремента.
     id задаётся вручную (1, 2, 3...).
     Содержит стандартные поля: id, code, name, sort_order, color.
+
+    ВАЖНО: В конкретной модели нужно переопределить id с sa_column:
+    id: int = Field(
+        sa_column=Column(Integer, primary_key=True, autoincrement=False),
+            description="...",
+    )
     """
 
     __abstract__ = True
 
-    id: int = Field(
-        sa_column=Column(Integer, primary_key=True, autoincrement=False),
-        description="ID элемента справочника (задаётся вручную)",
-    )
     code: str = Field(
         max_length=20,
         nullable=False,
@@ -98,3 +100,4 @@ class ReferenceModel(SQLModel):
 
     class Config:
         from_attributes = True
+

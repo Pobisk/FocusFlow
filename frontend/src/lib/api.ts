@@ -296,3 +296,96 @@ export async function updateSettings(
     body: JSON.stringify(data),
   })
 }
+
+// ── Project API ────────────────────────────────────
+
+export interface ProjectStatusRef {
+  id: number
+  code: string
+  name: string
+  sort_order: number
+  color: string | null
+}
+
+export interface Project {
+  id: string
+  sphere_id: string
+  sphere_code: string
+  sphere_name: string
+  goal_id: string | null
+  goal_title: string | null
+  title: string
+  description: string | null
+  start_date: string
+  finish_date: string
+  status_id: number
+  status_code: string
+  status_name: string
+  status_color: string | null
+  progress: number
+  has_active_task: boolean
+  speed: number | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ProjectCreate {
+  sphere_id: string
+  goal_id?: string | null
+  title: string
+  description?: string | null
+  start_date: string
+  finish_date: string
+  progress?: number
+}
+
+export interface ProjectUpdate {
+  title?: string
+  description?: string | null
+  start_date?: string
+  finish_date?: string
+  status_id?: number
+  progress?: number
+  sphere_id?: string
+  goal_id?: string | null
+}
+
+export async function getProjectStatuses(): Promise<ProjectStatusRef[]> {
+  return apiFetch<ProjectStatusRef[]>('/projects/statuses')
+}
+
+export async function getProjects(params?: {
+  sphere_id?: string
+  show_all?: boolean
+}): Promise<Project[]> {
+  const searchParams = new URLSearchParams()
+  if (params?.sphere_id) searchParams.set('sphere_id', params.sphere_id)
+  if (params?.show_all) searchParams.set('show_all', 'true')
+
+  const query = searchParams.toString()
+  return apiFetch<Project[]>(`/projects${query ? `?${query}` : ''}`)
+}
+
+export async function getProject(projectId: string): Promise<Project> {
+  return apiFetch<Project>(`/projects/${projectId}`)
+}
+
+export async function createProject(data: ProjectCreate): Promise<Project> {
+  return apiFetch<Project>('/projects', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateProject(projectId: string, data: ProjectUpdate): Promise<Project> {
+  return apiFetch<Project>(`/projects/${projectId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteProject(projectId: string): Promise<void> {
+  await apiFetch<void>(`/projects/${projectId}`, {
+    method: 'DELETE',
+  })
+}

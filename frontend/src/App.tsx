@@ -5,6 +5,8 @@ import { WorkspacePage } from '@/pages/WorkspacePage'
 import { SpheresPage } from '@/pages/SpheresPage'
 import { GoalsPage } from '@/pages/GoalsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { ProjectsPage } from '@/pages/ProjectsPage'
+import { ProjectEditPage } from '@/pages/ProjectEditPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 
 const queryClient = new QueryClient()
@@ -20,6 +22,8 @@ export function App() {
             <Route path="/spheres" element={<SpheresPage />} />
             <Route path="/goals" element={<GoalsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/projects/:id" element={<ProjectEditPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

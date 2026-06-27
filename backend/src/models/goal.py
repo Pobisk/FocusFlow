@@ -1,7 +1,8 @@
 """Goal model — желаемый результат в сфере жизни к указанному сроку."""
 
 import enum
-from sqlmodel import Field, Index
+from sqlmodel import Field, Index, Column
+from sqlalchemy import Integer
 from models.base import UserOwnedModel, ReferenceModel, UTCDateTime
 from uuid import UUID
 from datetime import datetime
@@ -17,11 +18,17 @@ class GoalStatus(int, enum.Enum):
 class GoalStatusRef(ReferenceModel, table=True):
     """Справочник статусов цели.
 
-    Наследует от ReferenceModel: id (ручной), code, name, sort_order, color.
+    Наследует от ReferenceModel: code, name, sort_order, color.
+    id задаётся вручную (1, 2, 3...).
     Заполняется через seed в миграции.
     """
 
     __tablename__ = "goal_statuses"
+
+    id: int = Field(
+        sa_column=Column(Integer, primary_key=True, autoincrement=False),
+        description="ID статуса (задаётся вручную)",
+    )
 
 
 class Goal(UserOwnedModel, table=True):
@@ -32,7 +39,6 @@ class Goal(UserOwnedModel, table=True):
     """
 
     __tablename__ = "goals"
-
     sphere_id: UUID = Field(
         foreign_key="spheres.id",
         nullable=False,
@@ -65,3 +71,4 @@ class Goal(UserOwnedModel, table=True):
     __table_args__ = (
         Index("ix_goals_user_sphere", "user_id", "sphere_id"),
     )
+

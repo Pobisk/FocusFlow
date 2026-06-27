@@ -69,14 +69,23 @@ export function WorkspacePage() {
               Желаемые результаты в сферах жизни
             </p>
           </button>
-          <div className="p-4 bg-white rounded-lg shadow-sm border">
+          <button
+            onClick={() => navigate('/projects')}
+            className="p-4 bg-white rounded-lg shadow-sm border text-left hover:shadow-md transition cursor-pointer"
+          >
+            <h3 className="font-medium mb-1">📋 Проекты</h3>
+            <p className="text-sm text-gray-500">
+              Список проектов, прогресс и скорость выполнения
+            </p>
+          </button>
+          <div className="p-4 bg-white rounded-lg shadow-sm border opacity-50">
             <h3 className="font-medium mb-2">📋 Задачи</h3>
             <p className="text-sm text-gray-500">
               Скоро здесь будет список ваших задач
             </p>
           </div>
-          <div className="p-4 bg-white rounded-lg shadow-sm border">
-            <h3 className="font-medium mb-2">📊 Статистика</h3>
+          <div className="p-4 bg-white rounded-lg shadow-sm border opacity-50">
+            <h3 className="font-medium mb-2">📊 Отчёт</h3>
             <p className="text-sm text-gray-500">
               Аналитика вашей продуктивности
             </p>
