@@ -8,6 +8,7 @@ from .goal import Goal, GoalStatusRef
 from .user_settings import UserSettings
 from .project import Project, ProjectStatusRef
 from .task import Task, TaskStatusRef
+from .task_log import TaskLog
 
 # Optional: export for convenient imports elsewhere
 __all__ = [
@@ -23,4 +24,5 @@ __all__ = [
     "ProjectStatusRef",
     "Task",
     "TaskStatusRef",
+    "TaskLog",
 ]

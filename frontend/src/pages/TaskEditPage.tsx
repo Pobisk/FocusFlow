@@ -10,8 +10,11 @@ import {
   getGoals,
   getProject,
   getTaskStatuses,
+  getTaskLog,
+  upsertTaskLog,
   type TaskCreate,
   type TaskUpdate,
+  type TaskLog,
 } from '@/lib/api'
 
 const STATUS_ACTIVE = 1
@@ -75,6 +78,13 @@ export function TaskEditPage() {
     enabled: !isNew,
   })
 
+  // ── Трудозатраты (только для редактирования) ──────
+  const { data: taskLog = [] } = useQuery({
+    queryKey: ['taskLog', id],
+    queryFn: () => getTaskLog(id!),
+    enabled: !isNew,
+  })
+
   // ── Состояние формы ───────────────────────────────
   const [sphereId, setSphereId] = useState('')
   const [goalId, setGoalId] = useState<string>('')
@@ -96,6 +106,12 @@ export function TaskEditPage() {
   // Read-only поля
   const [delayTo, setDelayTo] = useState<string | null>(null)
   const [refusalCount, setRefusalCount] = useState(0)
+
+  // Состояние мини-диалога для трудозатрат
+  const [showLogDialog, setShowLogDialog] = useState(false)
+  const [editLogEntry, setEditLogEntry] = useState<TaskLog | null>(null)
+  const [logDate, setLogDate] = useState('')
+  const [logMinutes, setLogMinutes] = useState(30)
 
   // Заполняем форму данными задачи при загрузке
   useEffect(() => {
@@ -179,6 +195,20 @@ export function TaskEditPage() {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
       queryClient.invalidateQueries({ queryKey: ['task', id] })
       navigate(-1)
+    },
+    onError: (err: Error) => setError(err.message),
+  })
+
+  // ── Мутация для трудозатрат ───────────────────────
+  const logMutation = useMutation({
+    mutationFn: (data: { log_date: string; minutes: number }) =>
+      upsertTaskLog(id!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['taskLog', id] })
+      setShowLogDialog(false)
+      setEditLogEntry(null)
+      setLogMinutes(30)
+      setLogDate(new Date().toISOString().slice(0, 10))
     },
     onError: (err: Error) => setError(err.message),
   })
@@ -277,6 +307,41 @@ export function TaskEditPage() {
 
   const handleGoBack = () => {
     navigate(-1)
+  }
+
+  // ── Обработчики диалога трудозатрат ───────────────
+  const openAddLogDialog = () => {
+    setEditLogEntry(null)
+    setLogDate(new Date().toISOString().slice(0, 10))
+    setLogMinutes(30)
+    setShowLogDialog(true)
+  }
+
+  const openEditLogDialog = (entry: TaskLog) => {
+    setEditLogEntry(entry)
+    const d = new Date(entry.log_date)
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    setLogDate(`${year}-${month}-${day}`)
+    setLogMinutes(entry.minutes)
+    setShowLogDialog(true)
+  }
+
+  const handleLogSubmit = () => {
+    if (!id || !logDate || logMinutes < 1) return
+    logMutation.mutate({
+      log_date: dateOnlyToUTC(logDate),
+      minutes: logMinutes,
+    })
+  }
+
+  const handleSetLogToZero = () => {
+    if (!id || !logDate || !editLogEntry) return
+    logMutation.mutate({
+      log_date: editLogEntry.log_date,
+      minutes: 0,
+    })
   }
 
   // ── Состояние загрузки ────────────────────────────
@@ -621,6 +686,61 @@ export function TaskEditPage() {
             </div>
           )}
 
+          {/* ── Трудозатраты (только для редактирования) ── */}
+          {!isNew && (
+            <div className="pt-4 border-t">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-medium text-gray-700">Фактическое время</h2>
+                <button
+                  onClick={openAddLogDialog}
+                  className="px-3 py-1.5 text-xs text-white bg-primary rounded-lg hover:bg-primary/90 transition"
+                >
+                  +
+                </button>
+              </div>
+
+              {taskLog.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">
+                  Нет записей о фактическом времени
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-gray-50">
+                        <th className="text-left px-3 py-2 font-medium text-gray-700">Дата</th>
+                        <th className="text-right px-3 py-2 font-medium text-gray-700">Минут</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {taskLog.filter((l) => l.minutes > 0).map((entry) => {
+                        const d = new Date(entry.log_date)
+                        const day = String(d.getDate()).padStart(2, '0')
+                        const month = String(d.getMonth() + 1).padStart(2, '0')
+                        const year = d.getFullYear()
+                        return (
+                          <tr key={entry.id} className="border-b last:border-b-0 hover:bg-gray-50 transition">
+                            <td className="px-3 py-2">
+                              <button
+                                onClick={() => openEditLogDialog(entry)}
+                                className="text-primary hover:text-primary/80 hover:underline"
+                              >
+                                {day}.{month}.{year}
+                              </button>
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono text-gray-700">
+                              {entry.minutes}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ── Кнопки ── */}
           <div className="pt-4 border-t flex items-center justify-between flex-wrap gap-2">
             <div className="flex gap-2">
@@ -665,6 +785,70 @@ export function TaskEditPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Мини-диалог для ввода/редактирования трудозатрат ── */}
+      {showLogDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setShowLogDialog(false)}>
+          <div
+            className="bg-white rounded-xl shadow-xl border p-6 w-full max-w-sm mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-medium text-gray-700 mb-4">
+              {editLogEntry ? 'Редактировать запись' : 'Новая запись'}
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Дата</label>
+                <input
+                  type="date"
+                  value={logDate}
+                  onChange={(e) => setLogDate(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Минут</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={1440}
+                  value={logMinutes}
+                  onChange={(e) => setLogMinutes(Number(e.target.value))}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+              <div className="flex justify-between gap-2 pt-2">
+                <div>
+                  {editLogEntry && (
+                    <button
+                      onClick={handleSetLogToZero}
+                      disabled={logMutation.isPending}
+                      className="px-3 py-1.5 text-xs text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition disabled:opacity-50"
+                    >
+                      Очистить
+                    </button>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setShowLogDialog(false); setEditLogEntry(null) }}
+                    className="px-3 py-1.5 text-xs text-gray-600 border rounded-lg hover:bg-gray-50 transition"
+                  >
+                    Закрыть
+                  </button>
+                  <button
+                    onClick={handleLogSubmit}
+                    disabled={logMutation.isPending}
+                    className="px-3 py-1.5 text-xs text-white bg-primary rounded-lg hover:bg-primary/90 transition disabled:opacity-50"
+                  >
+                    {logMutation.isPending ? 'Сохранение...' : editLogEntry ? 'Обновить' : 'Добавить'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

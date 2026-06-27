@@ -521,3 +521,28 @@ export async function deleteTask(taskId: string): Promise<void> {
     method: 'DELETE',
   })
 }
+
+// ── TaskLog API ──────────────────────────────────
+
+export interface TaskLog {
+  id: string
+  task_id: string
+  log_date: string
+  minutes: number
+  created_at: string
+  updated_at: string
+}
+
+export async function getTaskLog(taskId: string): Promise<TaskLog[]> {
+  return apiFetch<TaskLog[]>(`/tasks/${taskId}/log`)
+}
+
+export async function upsertTaskLog(
+  taskId: string,
+  data: { log_date: string; minutes: number },
+): Promise<TaskLog> {
+  return apiFetch<TaskLog>(`/tasks/${taskId}/log`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
