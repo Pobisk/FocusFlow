@@ -121,3 +121,34 @@ docker compose exec backend python -m src.db.init_db --reset --create
 | `type "goalstatus" does not exist` | SQLAlchemy создал ENUM вместо справочной таблицы | Использовать Integer FK, а не `sa_type=String` |
 | `AttributeError: 'str' object has no attribute 'value'` | refresh вернул строку вместо Enum | Проверить `isinstance(..., str) else .value` |
 | `pip install` таймаут при билде | Проблемы сети | Использовать `exec backend alembic upgrade head` вместо пересборки |
+
+## ⚠️ Работа с файлами через AI-инструменты
+
+### 🔴 ВАЖНО: Никогда не использовать пути `\\wsl.localhost\...`
+
+Инструменты AI (create_new_file, edit_existing_file, read_file) с путями `\\wsl.localhost\...` приводят к:
+- **Дублированию пути**: создаётся папка `wsl.localhost/` внутри репозитория
+- **Битому содержимому**: PowerShell экранирует кавычки, ломая Python-код
+- **Ошибкам "file not found"**: инструмент не может найти файл
+
+### ✅ Правило: Только относительные пути от корня проекта
+
+```python
+# ✅ ПРАВИЛЬНО — относительный путь от корня проекта:
+read_file("backend/src/models/user_settings.py")
+edit_existing_file("backend/src/models/__init__.py")
+create_new_file("frontend/src/pages/SettingsPage.tsx", "содержимое...")
+
+# ❌ НИКОГДА — полный WSL-путь:
+read_file("\\wsl.localhost\\Ubuntu\\home\\pobisk\\projects\\FocusFlow\\file.py")
+```
+
+### 🔧 Для run_terminal_command — использовать wsl bash
+
+```powershell
+# ✅ ПРАВИЛЬНО — команды через WSL:
+wsl bash -c "cd ~/projects/FocusFlow && команда"
+
+# ⚠️ ОСТОРОЖНО — многострочный текст и кириллица ломают heredoc
+# Лучше передавать содержимое через edit_existing_file
+```

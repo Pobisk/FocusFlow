@@ -4,6 +4,7 @@ import { LoginPage } from '@/pages/LoginPage'
 import { WorkspacePage } from '@/pages/WorkspacePage'
 import { SpheresPage } from '@/pages/SpheresPage'
 import { GoalsPage } from '@/pages/GoalsPage'
+import { SettingsPage } from '@/pages/SettingsPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 
 const queryClient = new QueryClient()
@@ -18,9 +19,11 @@ export function App() {
             <Route path="/workspace" element={<WorkspacePage />} />
             <Route path="/spheres" element={<SpheresPage />} />
             <Route path="/goals" element={<GoalsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
   )
 }
+

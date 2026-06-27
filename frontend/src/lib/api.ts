@@ -265,3 +265,34 @@ export async function deleteGoal(goalId: string): Promise<void> {
     method: 'DELETE',
   })
 }
+
+// ── Settings API ─────────────────────────────────────
+
+export interface UserSettings {
+  id: string
+  user_id: string
+  w_proactive: number
+  w_importance: number
+  w_consequences: number
+  w_urgency: number
+  w_refusals: number
+  w_project_speed: number
+  w_sphere_satisfaction: number
+  delay_minutes: number
+  deadline_near: number
+  created_at: string
+  updated_at: string
+}
+
+export async function getSettings(): Promise<UserSettings> {
+  return apiFetch<UserSettings>('/settings')
+}
+
+export async function updateSettings(
+  data: Partial<Omit<UserSettings, 'id' | 'user_id' | 'created_at' | 'updated_at'>>,
+): Promise<UserSettings> {
+  return apiFetch<UserSettings>('/settings', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
