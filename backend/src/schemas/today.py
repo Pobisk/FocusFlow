@@ -20,6 +20,10 @@ class TodayTaskRead(BaseModel):
 
     # ── Основные поля ─────────────────────────────
     title: str
+    description: str | None = Field(
+        default=None,
+        description="Описание задачи",
+    )
     is_appointment: bool
 
     # ── Даты ──────────────────────────────────────

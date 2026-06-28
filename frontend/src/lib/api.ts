@@ -648,3 +648,19 @@ export async function getToday(localDate: string): Promise<TodayResponse> {
   const params = new URLSearchParams({ local_date: localDate })
   return apiFetch<TodayResponse>(`/today?${params}`)
 }
+
+// ── Work API ────────────────────────────────────
+
+export interface WorkResponse {
+  task: TodayTask | null
+  total_tasks: number
+}
+
+/**
+ * Получить рекомендованную задачу для экрана «Работа».
+ * @param localDate - UTC ISO строка (фронт конвертирует 00:00 локального времени в UTC)
+ */
+export async function getWork(localDate: string): Promise<WorkResponse> {
+  const params = new URLSearchParams({ local_date: localDate })
+  return apiFetch<WorkResponse>(`/work?${params}`)
+}
