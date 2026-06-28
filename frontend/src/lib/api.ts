@@ -597,3 +597,54 @@ export async function updateSomeday(id: string, data: SomedayMaybeUpdate): Promi
     body: JSON.stringify(data),
   })
 }
+
+// ── Today API ────────────────────────────────────
+
+export interface TodaySummary {
+  planned_minutes: number
+  actual_minutes: number
+  goal_minutes: number
+}
+
+export interface TodayTask {
+  id: string
+  sphere_id: string
+  sphere_code: string
+  sphere_name: string
+  project_id: string | null
+  project_title: string | null
+  goal_id: string | null
+  goal_title: string | null
+  title: string
+  is_appointment: boolean
+  start_date: string
+  finish_date: string
+  appointment_at: string | null
+  travel_time: number | null
+  duration: number
+  progress: number
+  refusal_count: number
+  status_id: number
+  status_code: string
+  status_name: string
+  status_color: string | null
+  actual_minutes: number
+  brick_code: 'completed' | 'overdue' | 'near_deadline' | 'active' | 'cancelled'
+  created_at: string
+  updated_at: string
+}
+
+export interface TodayResponse {
+  date: string
+  summary: TodaySummary
+  tasks: TodayTask[]
+}
+
+/**
+ * Получить данные для экрана «Сегодня».
+ * @param localDate - UTC ISO строка (фронт конвертирует 00:00 локального времени в UTC)
+ */
+export async function getToday(localDate: string): Promise<TodayResponse> {
+  const params = new URLSearchParams({ local_date: localDate })
+  return apiFetch<TodayResponse>(`/today?${params}`)
+}

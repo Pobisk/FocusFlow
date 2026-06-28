@@ -43,6 +43,15 @@ export function WorkspacePage() {
         {/* Навигационные кнопки */}
         <div className="grid gap-4 md:grid-cols-2 mb-8">
           <button
+            onClick={() => navigate('/today')}
+            className="p-4 bg-white rounded-lg shadow-sm border text-left hover:shadow-md transition cursor-pointer"
+          >
+            <h3 className="font-medium mb-1">📅 Сегодня</h3>
+            <p className="text-sm text-gray-500">
+              Задачи на сегодня и сводка по времени
+            </p>
+          </button>
+          <button
             onClick={() => navigate('/settings')}
             className="p-4 bg-white rounded-lg shadow-sm border text-left hover:shadow-md transition cursor-pointer"
           >
