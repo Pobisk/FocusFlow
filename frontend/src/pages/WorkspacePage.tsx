@@ -22,7 +22,7 @@ export function WorkspacePage() {
 
   return (
     <main className="min-h-screen py-8 px-4 bg-gray-50">
-      <div className="max-w-4xl mx-auto">
+      <div className="mx-auto" style={{ maxWidth: 'min(490px, 100%)' }}>
         <header className="mb-8 pb-4 border-b flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
@@ -40,89 +40,84 @@ export function WorkspacePage() {
           </button>
         </header>
 
-        {/* Навигационные кнопки */}
-        <div className="grid gap-4 md:grid-cols-2 mb-8">
-          <button
-            onClick={() => navigate('/work')}
-            className="p-4 bg-white rounded-lg shadow-sm border text-left hover:shadow-md transition cursor-pointer"
-          >
-            <h3 className="font-medium mb-1">🚀 Работа</h3>
-            <p className="text-sm text-gray-500">
-              Рекомендованная задача для выполнения
-            </p>
-          </button>
-          <button
-            onClick={() => navigate('/today')}
-            className="p-4 bg-white rounded-lg shadow-sm border text-left hover:shadow-md transition cursor-pointer"
-          >
-            <h3 className="font-medium mb-1">📅 Сегодня</h3>
-            <p className="text-sm text-gray-500">
-              Задачи на сегодня и сводка по времени
-            </p>
-          </button>
-          <button
-            onClick={() => navigate('/settings')}
-            className="p-4 bg-white rounded-lg shadow-sm border text-left hover:shadow-md transition cursor-pointer"
-          >
-            <h3 className="font-medium mb-1">⚙️ Настройки</h3>
-            <p className="text-sm text-gray-500">
-              Параметры алгоритмов и интерфейса
-            </p>
-          </button>
-          <button
-            onClick={() => navigate('/spheres')}
-            className="p-4 bg-white rounded-lg shadow-sm border text-left hover:shadow-md transition cursor-pointer"
-          >
-            <h3 className="font-medium mb-1">🌐 Сферы</h3>
-            <p className="text-sm text-gray-500">
-              Управление сферами жизни
-            </p>
-          </button>
-          <button
-            onClick={() => navigate('/goals')}
-            className="p-4 bg-white rounded-lg shadow-sm border text-left hover:shadow-md transition cursor-pointer"
-          >
-            <h3 className="font-medium mb-1">🎯 Цели</h3>
-            <p className="text-sm text-gray-500">
-              Желаемые результаты в сферах жизни
-            </p>
-          </button>
-          <button
-            onClick={() => navigate('/projects')}
-            className="p-4 bg-white rounded-lg shadow-sm border text-left hover:shadow-md transition cursor-pointer"
-          >
-            <h3 className="font-medium mb-1">📦 Проекты</h3>
-            <p className="text-sm text-gray-500">
-              Управление проектами
-            </p>
-          </button>
-          <button
-            onClick={() => navigate('/tasks')}
-            className="p-4 bg-white rounded-lg shadow-sm border text-left hover:shadow-md transition cursor-pointer"
-          >
-            <h3 className="font-medium mb-1">📋 Задачи</h3>
-            <p className="text-sm text-gray-500">
-              Список всех задач
-            </p>
-          </button>
-          <button
-            onClick={() => navigate('/someday')}
-            className="p-4 bg-white rounded-lg shadow-sm border text-left hover:shadow-md transition cursor-pointer"
-          >
-            <h3 className="font-medium mb-1">💭 КНМБ</h3>
-            <p className="text-sm text-gray-500">
-              Когда-нибудь может быть
-            </p>
-          </button>
-          <div className="p-4 bg-white rounded-lg shadow-sm border opacity-50">
-            <h3 className="font-medium mb-2">📊 Отчёт</h3>
-            <p className="text-sm text-gray-500">
-              Аналитика вашей продуктивности
-            </p>
-          </div>
+        {/* Работа */}
+        <button
+          onClick={() => navigate('/work')}
+          className="w-full p-4 bg-white rounded-xl shadow-sm border text-left hover:shadow-md hover:border-primary/30 transition cursor-pointer mb-2"
+        >
+          <h3 className="font-medium text-lg">🚀 Работа</h3>
+          <p className="text-sm text-gray-500">Рекомендованная задача для выполнения</p>
+        </button>
+
+        {/* Сегодня */}
+        <button
+          onClick={() => navigate('/today')}
+          className="w-full p-4 bg-white rounded-xl shadow-sm border text-left hover:shadow-md hover:border-primary/30 transition cursor-pointer mb-2"
+        >
+          <h3 className="font-medium text-lg">📅 Сегодня</h3>
+          <p className="text-sm text-gray-500">Задачи на сегодня и сводка по времени</p>
+        </button>
+
+        {/* Задачи */}
+        <button
+          onClick={() => navigate('/tasks')}
+          className="w-full p-4 bg-white rounded-xl shadow-sm border text-left hover:shadow-md hover:border-primary/30 transition cursor-pointer mb-2"
+        >
+          <h3 className="font-medium text-lg">📋 Задачи</h3>
+          <p className="text-sm text-gray-500">Список всех задач</p>
+        </button>
+
+        {/* Проекты */}
+        <button
+          onClick={() => navigate('/projects')}
+          className="w-full p-4 bg-white rounded-xl shadow-sm border text-left hover:shadow-md hover:border-primary/30 transition cursor-pointer mb-2"
+        >
+          <h3 className="font-medium text-lg">📦 Проекты</h3>
+          <p className="text-sm text-gray-500">Управление проектами</p>
+        </button>
+
+        {/* КНМБ */}
+        <button
+          onClick={() => navigate('/someday')}
+          className="w-full p-4 bg-white rounded-xl shadow-sm border text-left hover:shadow-md hover:border-primary/30 transition cursor-pointer mb-2"
+        >
+          <h3 className="font-medium text-lg">💭 КНМБ</h3>
+          <p className="text-sm text-gray-500">Когда-нибудь может быть</p>
+        </button>
+
+        {/* Отчёт — неактивна */}
+        <div className="w-full p-4 bg-white rounded-xl shadow-sm border opacity-50 mb-2">
+          <h3 className="font-medium text-lg">📊 Отчёт</h3>
+          <p className="text-sm text-gray-500">Аналитика вашей продуктивности</p>
         </div>
+
+        {/* Цели */}
+        <button
+          onClick={() => navigate('/goals')}
+          className="w-full p-4 bg-white rounded-xl shadow-sm border text-left hover:shadow-md hover:border-primary/30 transition cursor-pointer mb-2"
+        >
+          <h3 className="font-medium text-lg">🎯 Цели</h3>
+          <p className="text-sm text-gray-500">Желаемые результаты в сферах жизни</p>
+        </button>
+
+        {/* Сферы */}
+        <button
+          onClick={() => navigate('/spheres')}
+          className="w-full p-4 bg-white rounded-xl shadow-sm border text-left hover:shadow-md hover:border-primary/30 transition cursor-pointer mb-2"
+        >
+          <h3 className="font-medium text-lg">🌐 Сферы</h3>
+          <p className="text-sm text-gray-500">Управление сферами жизни</p>
+        </button>
+
+        {/* Настройки */}
+        <button
+          onClick={() => navigate('/settings')}
+          className="w-full p-4 bg-white rounded-xl shadow-sm border text-left hover:shadow-md hover:border-primary/30 transition cursor-pointer mb-2"
+        >
+          <h3 className="font-medium text-lg">⚙️ Настройки</h3>
+          <p className="text-sm text-gray-500">Параметры алгоритмов и интерфейса</p>
+        </button>
       </div>
     </main>
   )
 }
-
