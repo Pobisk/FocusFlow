@@ -1,20 +1,8 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getWork, updateTask, upsertTaskLog, type TodayTask } from '@/lib/api'
+import { getWork, updateTask, upsertTaskLog } from '@/lib/api'
 import { dateOnlyToUTC } from '@/lib/utils'
-
-/**
- * Форматирует минуты в человекочитаемый формат: "1ч 50м" или "45м"
- */
-function formatMinutes(minutes: number): string {
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  if (h > 0) {
-    return m > 0 ? `${h}ч ${m}м` : `${h}ч`
-  }
-  return `${m}м`
-}
 
 export function WorkPage() {
   const navigate = useNavigate()
@@ -26,38 +14,23 @@ export function WorkPage() {
   const todayUtc = dateOnlyToUTC(localDateStr)
 
   // ── Загрузка задачи ───────────────────────────
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['work', todayUtc],
     queryFn: () => getWork(todayUtc),
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   })
+
+  // Принудительно перезапрашиваем при монтировании
+  useEffect(() => {
+    refetch()
+  }, [])
 
   const task = data?.task ?? null
   const totalTasks = data?.total_tasks ?? 0
 
-  // ── Таймер ────────────────────────────────────
-  const [timerSeconds, setTimerSeconds] = useState(0)
-  const [timerRunning, setTimerRunning] = useState(false)
-
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | undefined
-    if (timerRunning) {
-      interval = setInterval(() => {
-        setTimerSeconds((prev) => prev + 1)
-      }, 1000)
-    }
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [timerRunning])
-
-  const handleStartTimer = () => setTimerRunning(true)
-  const handlePauseTimer = () => setTimerRunning(false)
-  const handleStopTimer = () => {
-    setTimerRunning(false)
-    setTimerSeconds(0)
-  }
-
-  // ── Сохранить ─────────────────────────────────
+  // ── Поля формы ────────────────────────────────
   const [description, setDescription] = useState('')
   const [progress, setProgress] = useState(0)
   const [actualMinutes, setActualMinutes] = useState(0)
@@ -68,38 +41,96 @@ export function WorkPage() {
       setDescription(task.description ?? '')
       setProgress(task.progress)
       setActualMinutes(task.actual_minutes)
-      setTimerSeconds(0)
-      setTimerRunning(false)
+      setStartTime(null)
+      setIsTimerActive(false)
     }
   }, [task?.id])
 
+  // ── Таймер — пункт 2 ──────────────────────────
+  const [isTimerActive, setIsTimerActive] = useState(false)
+  const [startTime, setStartTime] = useState<number | null>(null)
+  const saveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Действие при срабатывании таймера — п.2.5
+  const actualMinutesRef = useRef(actualMinutes)
+  useEffect(() => {
+    actualMinutesRef.current = actualMinutes
+  }, [actualMinutes])
+
+  const doTimerTick = useCallback(() => {
+    if (startTime === null) return
+    const nowMs = Date.now()
+    const minPassed = Math.floor((nowMs - startTime) / 60000)
+
+    if (minPassed >= 1) {
+      const currentActual = actualMinutesRef.current
+      const newActual = currentActual + minPassed
+      setActualMinutes(newActual)
+      const newStartTime = startTime + minPassed * 60000
+      setStartTime(newStartTime)
+
+      // Сохраняем в БД
+      if (task) {
+        upsertTaskLog(task.id, {
+          log_date: todayUtc,
+          minutes: newActual,
+        }).catch(() => {})
+      }
+    }
+  }, [startTime, task, todayUtc])
+
+  // Каждые 200мс проверяем, не прошла ли минута
+  useEffect(() => {
+    if (isTimerActive) {
+      saveIntervalRef.current = setInterval(() => {
+        doTimerTick()
+      }, 200)
+    }
+    return () => {
+      if (saveIntervalRef.current) {
+        clearInterval(saveIntervalRef.current)
+        saveIntervalRef.current = null
+      }
+    }
+  }, [isTimerActive, doTimerTick])
+
+  // Остановка таймера — п.2.6
+  const stopTimer = useCallback(() => {
+    if (isTimerActive) {
+      doTimerTick() // сохраняем остаток перед остановкой
+      setIsTimerActive(false)
+      setStartTime(null)
+    }
+  }, [isTimerActive, doTimerTick])
+
+  // ── Кнопка «Назад» — п.2.7 ────────────────────
+  const handleBack = useCallback(() => {
+    stopTimer()
+    queryClient.removeQueries({ queryKey: ['work', todayUtc] })
+    navigate('/workspace')
+  }, [stopTimer, navigate, queryClient, todayUtc])
+
+  // ── Кнопка «Сохранить» ────────────────────────
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!task) return
 
-      // Время таймера в минутах
-      const timerMinutes = Math.round(timerSeconds / 60)
-      const newActual = actualMinutes + timerMinutes
-
-      // Сохраняем изменения задачи
+      // 1-й запрос: описание + прогресс
       await updateTask(task.id, {
         description: description || null,
         progress,
       })
 
-      // Сохраняем фактическое время
-      await upsertTaskLog(task.id, {
-        log_date: todayUtc,
-        minutes: newActual,
-      })
-
-      // Сбрасываем таймер
-      setTimerSeconds(0)
-      setActualMinutes(newActual)
+      // 2-й запрос: фактическое время — только если таймер неактивен
+      if (!isTimerActive) {
+        await upsertTaskLog(task.id, {
+          log_date: todayUtc,
+          minutes: actualMinutes,
+        })
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['work', todayUtc] })
-      queryClient.invalidateQueries({ queryKey: ['today', todayUtc] })
+      // Не перечитываем /work — у нас уже актуальные данные на экране
     },
   })
 
@@ -107,6 +138,9 @@ export function WorkPage() {
   const actionMutation = useMutation({
     mutationFn: async (action: 'later' | 'not_today' | 'complete' | 'cancel') => {
       if (!task) return
+
+      // Останавливаем таймер перед действием — п.2.6
+      stopTimer()
 
       switch (action) {
         case 'later': {
@@ -128,7 +162,7 @@ export function WorkPage() {
         }
         case 'complete': {
           await updateTask(task.id, {
-            status_id: 2, // завершена
+            status_id: 2,
             finish_date: todayUtc,
             progress: 100,
           })
@@ -136,7 +170,7 @@ export function WorkPage() {
         }
         case 'cancel': {
           await updateTask(task.id, {
-            status_id: 5, // отменена
+            status_id: 3,
             finish_date: todayUtc,
           })
           break
@@ -144,10 +178,20 @@ export function WorkPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['work', todayUtc] })
-      navigate('/today')
+      queryClient.removeQueries({ queryKey: ['work', todayUtc] })
+      navigate('/workspace')
     },
   })
+
+  // ── Старт / Стоп таймера ────────────────────
+  const handleStartTimer = () => {
+    setStartTime(Date.now())
+    setIsTimerActive(true)
+  }
+
+  const handleStopTimer = () => {
+    stopTimer()
+  }
 
   // ── Рендер ────────────────────────────────────
   return (
@@ -155,7 +199,7 @@ export function WorkPage() {
       <div className="max-w-2xl mx-auto">
         <header className="mb-6 pb-4 border-b">
           <button
-            onClick={() => navigate('/workspace')}
+            onClick={handleBack}
             className="text-sm text-gray-500 hover:text-gray-700 mb-1 flex items-center gap-1"
           >
             ← Назад
@@ -191,16 +235,16 @@ export function WorkPage() {
                 {task.goal_id && (
                   <span className="text-lg" title={task.goal_title ?? 'Привязан к цели'}>🎯</span>
                 )}
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm text-gray-500 font-mono">
                     {task.sphere_code}
                     {task.project_title && <> {task.project_title} /</>}
                   </p>
-                  <h2 className="text-xl font-bold text-gray-900">
+                  <h2 className="text-xl font-bold text-gray-900 break-words">
                     {task.is_appointment && <span className="text-lg">🕑</span>}
                     {task.title}
                     {task.is_appointment && task.appointment_at && (
-                      <span className="text-gray-500 text-base ml-2 font-normal">
+                      <span className="text-gray-500 text-base ml-2 font-normal whitespace-nowrap">
                         {new Date(task.appointment_at).toLocaleTimeString('ru-RU', {
                           hour: '2-digit',
                           minute: '2-digit',
@@ -223,7 +267,7 @@ export function WorkPage() {
               )}
             </div>
 
-            {/* ── Поля редактирования ──────────────── */}
+            {/* ── Поля редактирования + таймер ─────── */}
             <div className="bg-white rounded-xl shadow-sm border p-4 mb-4 space-y-4">
               {/* Описание */}
               <div>
@@ -241,20 +285,23 @@ export function WorkPage() {
               {/* Прогресс */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Прогресс
+                  Прогресс: {progress}%
                 </label>
                 <input
-                  type="number"
+                  type="range"
                   min={0}
                   max={100}
                   value={progress}
                   onChange={(e) => setProgress(Number(e.target.value))}
-                  className="w-24 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="w-full accent-primary"
                 />
-                <span className="text-sm text-gray-500 ml-2">%</span>
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <span>0%</span>
+                  <span>100%</span>
+                </div>
               </div>
 
-              {/* Время фактическое */}
+              {/* Время фактическое (на сегодня) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Время фактическое (на сегодня)
@@ -265,55 +312,46 @@ export function WorkPage() {
                     min={0}
                     value={actualMinutes}
                     onChange={(e) => setActualMinutes(Number(e.target.value))}
-                    className="w-24 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    disabled={isTimerActive}
+                    className="w-24 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                   <span className="text-sm text-gray-500">мин</span>
-                  {timerSeconds > 0 && (
-                    <span className="text-sm text-gray-400">
-                      (+{formatMinutes(Math.round(timerSeconds / 60))} таймер)
-                    </span>
-                  )}
                 </div>
               </div>
 
-              {/* Сохранить */}
-              <button
-                onClick={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 transition"
-              >
-                {saveMutation.isPending ? 'Сохранение...' : 'Сохранить'}
-              </button>
-            </div>
-
-            {/* ── Таймер ────────────────────────────── */}
-            <div className="bg-white rounded-xl shadow-sm border p-4 mb-4">
-              <div className="text-3xl font-mono text-center mb-3">
-                {formatMinutes(Math.round(timerSeconds / 60))}
-              </div>
-              <div className="flex justify-center gap-2">
-                {!timerRunning ? (
-                  <button
-                    onClick={handleStartTimer}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                  >
-                    Старт
-                  </button>
-                ) : (
-                  <button
-                    onClick={handlePauseTimer}
-                    className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition"
-                  >
-                    Пауза
-                  </button>
-                )}
+              {/* Сохранить + таймер в одной строке */}
+              <div className="flex items-end justify-between gap-2">
                 <button
-                  onClick={handleStopTimer}
-                  disabled={timerSeconds === 0}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition"
+                  onClick={() => saveMutation.mutate()}
+                  disabled={saveMutation.isPending}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 transition"
                 >
-                  Стоп
+                  {saveMutation.isPending ? 'Сохранение...' : 'Сохранить'}
                 </button>
+
+                {/* Таймер — прижат к правому краю */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {isTimerActive ? (
+                    <span className="text-2xl inline-block animate-spin" style={{ animationDuration: '2s' }} title="Таймер активен">⏳</span>
+                  ) : (
+                    <span className="text-2xl opacity-60" title="Таймер неактивен">⌛</span>
+                  )}
+                  {isTimerActive ? (
+                    <button
+                      onClick={handleStopTimer}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm"
+                    >
+                      Стоп
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleStartTimer}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm"
+                    >
+                      Старт
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
