@@ -1,6 +1,6 @@
 """Вычисление Score для задачи — алгоритм выбора задачи для экрана «Работа»."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from models.task import Task
 from models.user_settings import UserSettings
 from schemas.work import TaskScore
@@ -70,7 +70,7 @@ def compute_score(
     consequences_raw = float(task.consequences)
 
     # 4) Срочность — время до дедлайна
-    period_seconds = (task.finish_date - task.start_date).total_seconds()
+    period_seconds = (task.finish_date + timedelta(days=1) - task.start_date).total_seconds()
     elapsed_seconds = (now - task.start_date).total_seconds()
     urgency_raw = _calc_urgency(period_seconds, elapsed_seconds)
 
