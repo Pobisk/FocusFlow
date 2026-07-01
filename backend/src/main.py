@@ -9,7 +9,7 @@ from core.config import settings, get_settings
 from core.scheduler import create_scheduler, start_scheduler, shutdown_scheduler
 from db.session import async_engine, sync_engine
 from models.base import BaseModel
-from api.endpoints import health, auth, sphere, goal, user_settings, project, task, task_log, someday, today, work
+from api.endpoints import health, auth, sphere, goal, user_settings, project, task, task_log, someday, today, work, work_debug
 
 def _get_structlog_level(level) -> int:
     """
@@ -104,6 +104,7 @@ app.include_router(task_log.router, prefix="/api")
 app.include_router(someday.router, prefix="/api")
 app.include_router(today.router, prefix="/api")
 app.include_router(work.router, prefix="/api")
+app.include_router(work_debug.router, prefix="/api")
 
 # Root redirect to docs
 @app.get("/", include_in_schema=False)

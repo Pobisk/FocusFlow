@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 from db.session import get_db
 from models.project import Project, ProjectStatus, ProjectStatusRef
@@ -12,6 +12,7 @@ from models.sphere import Sphere
 from models.goal import Goal
 from schemas.project import ProjectRead, ProjectCreate, ProjectUpdate, ProjectStatusRead
 from core.auth import get_current_user_id
+from core.project import calc_speed
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -45,42 +46,6 @@ async def _has_active_task(project_id: UUID, db: AsyncSession) -> bool:
     return count > 0
 
 
-def _calc_speed(project: Project, now: datetime) -> float | None:
-    """Вычисляет скорость проекта.
-
-    Формула: progress / time_passed_percent
-    - time_passed_percent: сколько % времени проекта прошло (0-100)
-    - Если прошло < 1% — возвращаем None
-    - Если progress = 0 и время прошло — возвращаем 0.0
-    """
-    if project.status_id != ProjectStatus.ACTIVE.value:
-        return None
-
-    start_ts = project.start_date.timestamp()
-    # finish_date + 1 день — "дата ПО"
-    finish_ts = (project.finish_date + timedelta(days=1)).timestamp()
-    now_ts = now.timestamp()
-
-    # Ограничиваем now границами интервала
-    if now_ts < start_ts:
-        return None
-    if now_ts > finish_ts:
-        now_ts = finish_ts
-
-    total_span = finish_ts - start_ts
-    if total_span <= 0:
-        return None
-
-    time_passed = now_ts - start_ts
-    time_passed_percent = (time_passed / total_span) * 100
-
-    if time_passed_percent < 1:
-        return None
-
-    speed = project.progress / time_passed_percent
-    return round(speed, 1)
-
-
 async def _enrich_project(
     project: Project, db: AsyncSession, now: datetime | None = None
 ) -> ProjectRead:
@@ -109,7 +74,7 @@ async def _enrich_project(
 
     # Вычисляемые поля
     has_active_task = await _has_active_task(project.id, db)
-    speed = _calc_speed(project, now)
+    speed = calc_speed(project, now)
 
     return ProjectRead(
         id=project.id,

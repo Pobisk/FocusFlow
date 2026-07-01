@@ -14,11 +14,33 @@ from models.project import Project
 from models.goal import Goal
 from models.user_settings import UserSettings
 from core.score import compute_score
-from schemas.work import WorkResponse
+from core.project import calc_speed
+from schemas.work import WorkResponse, TaskScore
 from schemas.today import TodayTaskRead
 from core.auth import get_current_user_id
 
 router = APIRouter(prefix="/work", tags=["work"])
+
+
+async def _read_task_actual_minutes(
+    task_id: UUID,
+    user_id: UUID,
+    local_date: datetime,
+    db: AsyncSession,
+) -> int:
+    """Читает фактическое время (минут) для задачи на указанную дату.
+
+    Если записи в TaskLog нет — возвращает 0.
+    """
+    result = await db.execute(
+        select(TaskLog).where(
+            TaskLog.task_id == task_id,
+            TaskLog.user_id == user_id,
+            TaskLog.log_date == local_date,
+        )
+    )
+    log = result.scalar_one_or_none()
+    return log.minutes if log else 0
 
 
 async def _enrich_task(
@@ -122,21 +144,7 @@ async def get_work(
 
     total_tasks = len(all_tasks)
 
-    # ── 2. Загружаем TaskLog на сегодня ────────────────
-    task_ids = [t.id for t in all_tasks]
-    log_result = await db.execute(
-        select(TaskLog).where(
-            TaskLog.task_id.in_(task_ids),
-            TaskLog.user_id == user_id,
-            TaskLog.log_date == local_date,
-        )
-    )
-    log_map: dict[UUID, int] = {
-        row.task_id: row.minutes
-        for row in log_result.scalars().all()
-    }
-
-    # ── 3. Проверяем встречи ───────────────────────────
+    # ── 2. Проверяем встречи ───────────────────────────
     appointments = [t for t in all_tasks if t.is_appointment]
     min_next_appointment_minutes: float = float("inf")
 
@@ -146,7 +154,8 @@ async def get_work(
             real_end = apt.appointment_at + timedelta(minutes=apt.duration)
 
             if real_start <= current_moment <= real_end:
-                enriched = await _enrich_task(db, apt, log_map.get(apt.id, 0))
+                actual = await _read_task_actual_minutes(apt.id, user_id, local_date, db)
+                enriched = await _enrich_task(db, apt, actual)
                 return WorkResponse(task=enriched, total_tasks=total_tasks)
 
             if real_start > current_moment:
@@ -177,9 +186,9 @@ async def get_work(
     project_cache: dict[UUID, float | None] = {}
     sphere_cache: dict[UUID, float | None] = {}
 
-    scored: list[tuple[float, Task]] = []
+    scored: list[tuple[TaskScore, Task]] = []
     for task in candidates:
-        # Скорость проекта — заглушка (TODO: вычислить реальную скорость)
+        # Скорость проекта
         project_speed: float | None = None
         if task.project_id:
             if task.project_id not in project_cache:
@@ -187,8 +196,7 @@ async def get_work(
                     select(Project).where(Project.id == task.project_id)
                 )
                 proj = proj_res.scalar_one_or_none()
-                # Заглушка: 1.0 если проект существует
-                project_cache[task.project_id] = 1.0 if proj else None
+                project_cache[task.project_id] = calc_speed(proj, current_moment) if proj else None
             project_speed = project_cache[task.project_id]
 
         # Удовлетворённость сферы
@@ -201,11 +209,12 @@ async def get_work(
             sphere_cache[task.sphere_id] = sphere.satisfaction if sphere else None
         sphere_satisfaction = sphere_cache[task.sphere_id]
 
-        score = compute_score(task, settings, project_speed, sphere_satisfaction)
-        scored.append((score, task))
+        score_obj = compute_score(task, settings, project_speed, sphere_satisfaction)
+        scored.append((score_obj, task))
 
-    scored.sort(key=lambda x: -x[0])
+    scored.sort(key=lambda x: -x[0].total)
     best_score, best_task = scored[0]
 
-    enriched = await _enrich_task(db, best_task, log_map.get(best_task.id, 0))
+    actual = await _read_task_actual_minutes(best_task.id, user_id, local_date, db)
+    enriched = await _enrich_task(db, best_task, actual)
     return WorkResponse(task=enriched, total_tasks=total_tasks)
