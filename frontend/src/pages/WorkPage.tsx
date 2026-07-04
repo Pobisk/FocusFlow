@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getWork, updateTask, upsertTaskLog } from '@/lib/api'
-import { dateOnlyToUTC } from '@/lib/utils'
+import { dateOnlyToUTC, getTodayLocalDate } from '@/lib/utils'
 
 export function WorkPage() {
   const navigate = useNavigate()
@@ -13,8 +13,7 @@ export function WorkPage() {
   const taskIdParam = searchParams.get('task_id') ?? undefined
 
   // ── Сегодняшняя дата ──────────────────────────
-  const now = new Date()
-  const localDateStr = now.toISOString().slice(0, 10)
+  const localDateStr = getTodayLocalDate()
   const todayUtc = dateOnlyToUTC(localDateStr)
 
   // ── Загрузка задачи ───────────────────────────

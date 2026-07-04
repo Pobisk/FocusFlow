@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { dateOnlyToUTC, utcToDateOnly, formatDateTimeLocal } from '@/lib/utils'
+import { dateOnlyToUTC, utcToDateOnly, formatDateTimeLocal, getTodayLocalDate, getDateOffset } from '@/lib/utils'
 import {
   getProject,
   createProject,
@@ -68,11 +68,8 @@ export function ProjectEditPage() {
   // Заполняем форму данными проекта при загрузке
   useEffect(() => {
     if (isNew) {
-      const today = new Date()
-      const todayStr = today.toISOString().slice(0, 10)
-      const weekLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10)
+      const todayStr = getTodayLocalDate()
+      const weekLater = getDateOffset(7)
 
       if (spheres.length > 0) setSphereId(spheres[0].id)
       setStartDate(todayStr)
@@ -154,7 +151,7 @@ export function ProjectEditPage() {
   // ── Обработчики кнопок Завершить/Отменить ──────────
   const handleComplete = () => {
     if (!id) return
-    const today = new Date().toISOString().slice(0, 10)
+    const today = getTodayLocalDate()
     updateMutation.mutate({
       status_id: STATUS_COMPLETED,
       finish_date: dateOnlyToUTC(today),
@@ -164,7 +161,7 @@ export function ProjectEditPage() {
 
   const handleCancel = () => {
     if (!id) return
-    const today = new Date().toISOString().slice(0, 10)
+    const today = getTodayLocalDate()
     updateMutation.mutate({
       status_id: STATUS_CANCELLED,
       finish_date: dateOnlyToUTC(today),

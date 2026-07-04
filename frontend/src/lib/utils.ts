@@ -20,6 +20,38 @@ export function dateOnlyToUTC(dateOnly: string): string {
   const localDate = new Date(year, month - 1, day, 0, 0, 0, 0)
   return localDate.toISOString()
 }
+
+/**
+ * Возвращает сегодняшнюю дату в формате YYYY-MM-DD в локальном часовом поясе.
+ *
+ * В отличие от new Date().toISOString().slice(0, 10),
+ * эта функция берёт ГОД/МЕСЯЦ/ДЕНЬ из локального времени.
+ *
+ * Пример для UTC+3 в 01:30 ночи:
+ *   getTodayLocalDate() → "2026-07-05" (правильно)
+ *   new Date().toISOString().slice(0, 10) → "2026-07-04" (неправильно, предыдущий день в UTC)
+ */
+export function getTodayLocalDate(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Возвращает дату YYYY-MM-DD через N дней от сегодня, в локальном часовом поясе.
+ *
+ * Пример: getDateOffset(7) → "2026-07-12" (если сегодня 2026-07-05)
+ */
+export function getDateOffset(days: number): string {
+  const d = new Date(getTodayLocalDate())
+  d.setDate(d.getDate() + days)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 /**
  * Конвертирует UTC ISO-строку в "дату без времени" (YYYY-MM-DD) для date input.
  *

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { dateOnlyToUTC, utcToDateOnly, formatDateTimeLocal } from '@/lib/utils'
+import { dateOnlyToUTC, utcToDateOnly, formatDateTimeLocal, getTodayLocalDate, getDateOffset } from '@/lib/utils'
 import {
   getTask,
   createTask,
@@ -116,11 +116,8 @@ export function TaskEditPage() {
   // Заполняем форму данными задачи при загрузке
   useEffect(() => {
     if (isNew) {
-      const today = new Date()
-      const todayStr = today.toISOString().slice(0, 10)
-      const weekLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10)
+      const todayStr = getTodayLocalDate()
+      const weekLater = getDateOffset(7)
 
       if (presetProjectId && project) {
         // Проектная задача — копируем сферу и цель из проекта
@@ -208,7 +205,7 @@ export function TaskEditPage() {
       setShowLogDialog(false)
       setEditLogEntry(null)
       setLogMinutes(30)
-      setLogDate(new Date().toISOString().slice(0, 10))
+      setLogDate(getTodayLocalDate())
     },
     onError: (err: Error) => setError(err.message),
   })
@@ -288,7 +285,7 @@ export function TaskEditPage() {
   // ── Обработчики кнопок Завершить/Отменить ──────────
   const handleComplete = () => {
     if (!id) return
-    const today = new Date().toISOString().slice(0, 10)
+    const today = getTodayLocalDate()
     updateMutation.mutate({
       status_id: STATUS_COMPLETED,
       finish_date: dateOnlyToUTC(today),
@@ -298,7 +295,7 @@ export function TaskEditPage() {
 
   const handleCancel = () => {
     if (!id) return
-    const today = new Date().toISOString().slice(0, 10)
+    const today = getTodayLocalDate()
     updateMutation.mutate({
       status_id: STATUS_CANCELLED,
       finish_date: dateOnlyToUTC(today),
@@ -312,7 +309,7 @@ export function TaskEditPage() {
   // ── Обработчики диалога трудозатрат ───────────────
   const openAddLogDialog = () => {
     setEditLogEntry(null)
-    setLogDate(new Date().toISOString().slice(0, 10))
+    setLogDate(getTodayLocalDate())
     setLogMinutes(30)
     setShowLogDialog(true)
   }

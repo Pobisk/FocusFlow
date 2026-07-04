@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getToday, type TodayTask } from '@/lib/api'
-import { dateOnlyToUTC } from '@/lib/utils'
+import { dateOnlyToUTC, getTodayLocalDate } from '@/lib/utils'
 
 /**
  * Форматирует минуты в человекочитаемый формат: "1ч 50м" или "45м"
@@ -37,8 +37,7 @@ export function TodayPage() {
   const navigate = useNavigate()
 
   // ── Вычисляем «сегодня» в локальном времени ─────
-  const now = new Date()
-  const localDateStr = now.toISOString().slice(0, 10) // YYYY-MM-DD
+  const localDateStr = getTodayLocalDate()
   const todayUtc = dateOnlyToUTC(localDateStr)
 
   // ── Запрос ─────────────────────────────────────
