@@ -110,6 +110,10 @@ async def get_work(
         description="Сегодняшняя дата (UTC ISO 8601). "
                     "Фронт конвертирует 00:00 локального времени в UTC и передаёт сюда.",
     ),
+    task_id: UUID | None = Query(
+        default=None,
+        description="ID задачи для прямого перехода. Если указан — возвращаем её без алгоритма.",
+    ),
     user_id: UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> WorkResponse:
@@ -117,9 +121,26 @@ async def get_work(
     Алгоритм выбора задачи для экрана «Работа».
 
     🔐 Требует авторизацию (JWT Bearer token)
-    📋 Возвращает одну задачу, рекомендованную к выполнению.
+    📋 Если передан task_id — возвращает указанную задачу (прямой переход с ракеты).
+    📋 Иначе — алгоритм выбирает задачу с максимальным Score.
     """
     current_moment = datetime.now(timezone.utc)
+
+    # ── Прямой переход по task_id ────────────────────
+    if task_id:
+        result = await db.execute(
+            select(Task).where(
+                Task.id == task_id,
+                Task.user_id == user_id,
+            )
+        )
+        task = result.scalar_one_or_none()
+        if not task:
+            return WorkResponse(task=None, total_tasks=0)
+
+        actual = await _read_task_actual_minutes(task.id, user_id, local_date, db)
+        enriched = await _enrich_task(db, task, actual)
+        return WorkResponse(task=enriched, total_tasks=1)
 
     # Загружаем настройки
     settings_result = await db.execute(

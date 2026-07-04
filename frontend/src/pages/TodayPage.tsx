@@ -149,7 +149,7 @@ export function TodayPage() {
                         task={task}
                         onTaskClick={() => navigate(`/tasks/${task.id}`)}
                         onProjectClick={(projectId) => navigate(`/projects/${projectId}`)}
-                        onStartWork={() => navigate(`/workspace?task_id=${task.id}`)}
+                        onStartWork={() => navigate(`/work?task_id=${task.id}`)}
                       />
                     ))
                   )}
@@ -170,7 +170,7 @@ export function TodayPage() {
                     task={task}
                     onTaskClick={() => navigate(`/tasks/${task.id}`)}
                     onProjectClick={(projectId) => navigate(`/projects/${projectId}`)}
-                    onStartWork={() => navigate(`/workspace?task_id=${task.id}`)}
+                    onStartWork={() => navigate(`/work?task_id=${task.id}`)}
                   />
                 ))
               )}

@@ -1,12 +1,16 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getWork, updateTask, upsertTaskLog } from '@/lib/api'
 import { dateOnlyToUTC } from '@/lib/utils'
 
 export function WorkPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const queryClient = useQueryClient()
+
+  // ── Если передан task_id — прямой переход ────
+  const taskIdParam = searchParams.get('task_id') ?? undefined
 
   // ── Сегодняшняя дата ──────────────────────────
   const now = new Date()
@@ -15,8 +19,8 @@ export function WorkPage() {
 
   // ── Загрузка задачи ───────────────────────────
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['work', todayUtc],
-    queryFn: () => getWork(todayUtc),
+    queryKey: ['work', todayUtc, taskIdParam],
+    queryFn: () => getWork(todayUtc, taskIdParam),
     staleTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: true,

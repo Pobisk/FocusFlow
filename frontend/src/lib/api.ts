@@ -659,8 +659,10 @@ export interface WorkResponse {
 /**
  * Получить рекомендованную задачу для экрана «Работа».
  * @param localDate - UTC ISO строка (фронт конвертирует 00:00 локального времени в UTC)
+ * @param taskId - если указан, переходим к конкретной задаче (с ракеты)
  */
-export async function getWork(localDate: string): Promise<WorkResponse> {
+export async function getWork(localDate: string, taskId?: string): Promise<WorkResponse> {
   const params = new URLSearchParams({ local_date: localDate })
+  if (taskId) params.set('task_id', taskId)
   return apiFetch<WorkResponse>(`/work?${params}`)
 }

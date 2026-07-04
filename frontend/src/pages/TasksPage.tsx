@@ -185,7 +185,7 @@ export function TasksPage() {
                     </tr>
                   ) : (
                     filteredTasks.map((task) => (
-                      <TaskRow key={task.id} task={task} onNavigate={() => navigate(`/tasks/${task.id}`)} onProjectNavigate={(projectId) => navigate(`/projects/${projectId}`)} />
+                      <TaskRow key={task.id} task={task} onNavigate={() => navigate(`/tasks/${task.id}`)} onProjectNavigate={(projectId) => navigate(`/projects/${projectId}`)} onStartWork={() => navigate(`/work?task_id=${task.id}`)} />
                     ))
                   )}
                 </tbody>
@@ -200,7 +200,7 @@ export function TasksPage() {
                 </div>
               ) : (
                 filteredTasks.map((task) => (
-                  <TaskCard key={task.id} task={task} onNavigate={() => navigate(`/tasks/${task.id}`)} onProjectNavigate={(projectId) => navigate(`/projects/${projectId}`)} />
+                  <TaskCard key={task.id} task={task} onNavigate={() => navigate(`/tasks/${task.id}`)} onProjectNavigate={(projectId) => navigate(`/projects/${projectId}`)} onStartWork={() => navigate(`/work?task_id=${task.id}`)} />
                 ))
               )}
             </div>
@@ -217,9 +217,10 @@ interface TaskRowProps {
   task: Task
   onNavigate: () => void
   onProjectNavigate: (projectId: string) => void
+  onStartWork: () => void
 }
 
-function TaskRow({ task, onNavigate, onProjectNavigate }: TaskRowProps) {
+function TaskRow({ task, onNavigate, onProjectNavigate, onStartWork }: TaskRowProps) {
   // Ракета — только для активных задач, не встреч
   const showRocket = task.status_id === 1 && !task.is_appointment
 
@@ -232,7 +233,13 @@ function TaskRow({ task, onNavigate, onProjectNavigate }: TaskRowProps) {
     <tr className="border-b last:border-b-0 hover:bg-gray-50 transition">
       <td className="px-2 py-3 text-center">
         {showRocket ? (
-          <span className="text-sm cursor-pointer" title="Взять в работу">🚀</span>
+          <button
+            onClick={(e) => { e.stopPropagation(); onStartWork() }}
+            className="text-sm hover:scale-110 transition cursor-pointer"
+            title="Взять в работу"
+          >
+            🚀
+          </button>
         ) : null}
       </td>
       <td className="px-2 py-3 text-center">
@@ -296,9 +303,10 @@ interface TaskCardProps {
   task: Task
   onNavigate: () => void
   onProjectNavigate: (projectId: string) => void
+  onStartWork: () => void
 }
 
-function TaskCard({ task, onNavigate, onProjectNavigate }: TaskCardProps) {
+function TaskCard({ task, onNavigate, onProjectNavigate, onStartWork }: TaskCardProps) {
   const showRocket = task.status_id === 1 && !task.is_appointment
 
   const appointmentSuffix = task.is_appointment && task.appointment_at
@@ -326,7 +334,13 @@ function TaskCard({ task, onNavigate, onProjectNavigate }: TaskCardProps) {
             <span className="text-sm" title="Привязан к цели">🎯</span>
           )}
           {showRocket && (
-            <span className="text-sm" title="Взять в работу">🚀</span>
+            <button
+              onClick={(e) => { e.stopPropagation(); onStartWork() }}
+              className="text-sm hover:scale-110 transition cursor-pointer"
+              title="Взять в работу"
+            >
+              🚀
+            </button>
           )}
         </div>
       </div>
