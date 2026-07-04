@@ -148,7 +148,7 @@ export function WorkPage() {
 
       switch (action) {
         case 'later': {
-          const delayMinutes = 30 // TODO: взять из настроек
+          const delayMinutes = data?.delay_minutes ?? 60
           const delayTo = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString()
           await updateTask(task.id, {
             delay_to: delayTo,

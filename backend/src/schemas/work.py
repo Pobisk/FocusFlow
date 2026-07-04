@@ -57,3 +57,7 @@ class WorkResponse(BaseModel):
     total_tasks: int = Field(
         description="Общее количество активных задач на сегодня (до фильтрации)",
     )
+    delay_minutes: int = Field(
+        default=60,
+        description="Значение delay_minutes из настроек (для кнопки «Позже»)",
+    )

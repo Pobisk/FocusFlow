@@ -126,6 +126,16 @@ async def get_work(
     """
     current_moment = datetime.now(timezone.utc)
 
+    # Загружаем настройки
+    settings_result = await db.execute(
+        select(UserSettings).where(UserSettings.user_id == user_id)
+    )
+    settings = settings_result.scalar_one_or_none()
+    if not settings:
+        return WorkResponse(task=None, total_tasks=0)
+
+    delay_minutes = settings.delay_minutes
+
     # ── Прямой переход по task_id ────────────────────
     if task_id:
         result = await db.execute(
@@ -140,15 +150,7 @@ async def get_work(
 
         actual = await _read_task_actual_minutes(task.id, user_id, local_date, db)
         enriched = await _enrich_task(db, task, actual)
-        return WorkResponse(task=enriched, total_tasks=1)
-
-    # Загружаем настройки
-    settings_result = await db.execute(
-        select(UserSettings).where(UserSettings.user_id == user_id)
-    )
-    settings = settings_result.scalar_one_or_none()
-    if not settings:
-        return WorkResponse(task=None, total_tasks=0)
+        return WorkResponse(task=enriched, total_tasks=1, delay_minutes=delay_minutes)
 
     # ── 1. Все активные задачи на сегодня ─────────────
     stmt = select(Task).where(
@@ -161,7 +163,7 @@ async def get_work(
     all_tasks = result.scalars().all()
 
     if not all_tasks:
-        return WorkResponse(task=None, total_tasks=0)
+        return WorkResponse(task=None, total_tasks=0, delay_minutes=delay_minutes)
 
     total_tasks = len(all_tasks)
 
@@ -177,7 +179,7 @@ async def get_work(
             if real_start <= current_moment <= real_end:
                 actual = await _read_task_actual_minutes(apt.id, user_id, local_date, db)
                 enriched = await _enrich_task(db, apt, actual)
-                return WorkResponse(task=enriched, total_tasks=total_tasks)
+                return WorkResponse(task=enriched, total_tasks=total_tasks, delay_minutes=delay_minutes)
 
             if real_start > current_moment:
                 minutes_to = (real_start - current_moment).total_seconds() / 60
@@ -201,7 +203,7 @@ async def get_work(
         ]
 
     if not candidates:
-        return WorkResponse(task=None, total_tasks=total_tasks)
+        return WorkResponse(task=None, total_tasks=total_tasks, delay_minutes=delay_minutes)
 
     # ── 5. Считаем Score ──────────────────────────────
     project_cache: dict[UUID, float | None] = {}
@@ -238,4 +240,4 @@ async def get_work(
 
     actual = await _read_task_actual_minutes(best_task.id, user_id, local_date, db)
     enriched = await _enrich_task(db, best_task, actual)
-    return WorkResponse(task=enriched, total_tasks=total_tasks)
+    return WorkResponse(task=enriched, total_tasks=total_tasks, delay_minutes=delay_minutes)

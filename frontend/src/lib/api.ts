@@ -654,6 +654,7 @@ export async function getToday(localDate: string): Promise<TodayResponse> {
 export interface WorkResponse {
   task: TodayTask | null
   total_tasks: number
+  delay_minutes: number
 }
 
 /**
