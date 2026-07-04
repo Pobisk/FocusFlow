@@ -60,8 +60,8 @@ def compute_score(
     """
     now = datetime.now(timezone.utc)
 
-    # 1) Проактивность (привязка к цели) — *3
-    proactive_raw = 3.0 if task.goal_id else 0.0
+    # 1) Проактивность (привязка к цели) — *2
+    proactive_raw = 2.0 if task.goal_id else 0.0
 
     # 2) Важность (0-3)
     importance_raw = float(task.importance)
@@ -73,6 +73,10 @@ def compute_score(
     period_seconds = (task.finish_date + timedelta(days=1) - task.start_date).total_seconds()
     elapsed_seconds = (now - task.start_date).total_seconds()
     urgency_raw = _calc_urgency(period_seconds, elapsed_seconds)
+
+    # Для коротких задач (≤2 дня) — поднимаем базовую срочность
+    if period_seconds <= 2 * 86400:
+        urgency_raw += 0.5
 
     # 5) Количество откладываний (лягушки)
     refusals_raw = min(task.refusal_count / 100, 1.0)
