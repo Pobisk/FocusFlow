@@ -9,7 +9,7 @@ def calc_speed(project: Project, now: datetime) -> float | None:
 
     Формула: progress / time_passed_percent
     - time_passed_percent: сколько % времени проекта прошло (0-100)
-    - Если прошло < 1% — возвращаем None
+    - Если прошло < 1% — возвращаем 0.0
     - Если progress = 0 и время прошло — возвращаем 0.0
     """
     if project.status_id != ProjectStatus.ACTIVE.value:
@@ -34,7 +34,7 @@ def calc_speed(project: Project, now: datetime) -> float | None:
     time_passed_percent = (time_passed / total_span) * 100
 
     if time_passed_percent < 1:
-        return None
+        return 0.0
 
     speed = project.progress / time_passed_percent
     return round(speed, 1)
