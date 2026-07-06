@@ -156,9 +156,10 @@ export function WorkPage() {
           break
         }
         case 'not_today': {
-          const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0)
+          // Завтра: прибавляем 1 день к todayUtc
+          const tomorrow = new Date(new Date(todayUtc).getTime() + 86400000).toISOString()
           await updateTask(task.id, {
-            delay_to: tomorrow.toISOString(),
+            delay_to: tomorrow,
             refusal_count: task.refusal_count + 1,
           })
           break
