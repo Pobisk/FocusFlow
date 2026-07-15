@@ -20,10 +20,10 @@ from core.project import calc_speed
 from schemas.work import TaskScore
 from core.auth import get_current_user_id
 
-router = APIRouter(prefix="/work", tags=["work-debug"])
+router = APIRouter(prefix="/work-debug", tags=["work-debug"])
 
 
-@router.get("/debug", response_model=list[TaskScore])
+@router.get("", response_model=list[TaskScore])
 async def get_work_debug(
     local_date: datetime = Query(
         ...,
@@ -61,13 +61,27 @@ async def get_work_debug(
     result = await db.execute(stmt)
     candidates = result.scalars().all()
 
-    # ── Считаем Score для каждой ──────────────────────
-    project_cache: dict[UUID, float | None] = {}
-    sphere_cache: dict[UUID, float | None] = {}
+    # ── Кеши ──────────────────────────────────────────
+    project_cache: dict[UUID, tuple[str | None, float | None]] = {}
+    sphere_cache: dict[UUID, str | None] = {}
+    sphere_sat_cache: dict[UUID, float | None] = {}
 
     scores: list[TaskScore] = []
     for task in candidates:
-        # Скорость проекта
+        # Сфера
+        sphere_code: str = ""
+        if task.sphere_id not in sphere_cache:
+            sphere_res = await db.execute(
+                select(Sphere).where(Sphere.id == task.sphere_id)
+            )
+            sphere = sphere_res.scalar_one_or_none()
+            sphere_cache[task.sphere_id] = sphere.code if sphere else ""
+            sphere_sat_cache[task.sphere_id] = sphere.satisfaction if sphere else None
+        sphere_code = sphere_cache[task.sphere_id] or ""
+        sphere_satisfaction = sphere_sat_cache[task.sphere_id]
+
+        # Проект
+        project_title: str | None = None
         project_speed: float | None = None
         if task.project_id:
             if task.project_id not in project_cache:
@@ -75,21 +89,21 @@ async def get_work_debug(
                     select(Project).where(Project.id == task.project_id)
                 )
                 proj = proj_res.scalar_one_or_none()
-                project_cache[task.project_id] = calc_speed(proj, current_moment) if proj else None
-            project_speed = project_cache[task.project_id]
-
-        # Удовлетворённость сферы
-        sphere_satisfaction: float | None = None
-        if task.sphere_id not in sphere_cache:
-            sphere_res = await db.execute(
-                select(Sphere).where(Sphere.id == task.sphere_id)
-            )
-            sphere = sphere_res.scalar_one_or_none()
-            sphere_cache[task.sphere_id] = sphere.satisfaction if sphere else None
-        sphere_satisfaction = sphere_cache[task.sphere_id]
+                project_cache[task.project_id] = (
+                    proj.title if proj else None,
+                    calc_speed(proj, current_moment) if proj else None,
+                )
+            proj_cache = project_cache[task.project_id]
+            project_title = proj_cache[0]
+            project_speed = proj_cache[1]
 
         score_obj = compute_score(task, settings, project_speed, sphere_satisfaction)
+        # Обогащаем дополнительными полями
+        score_obj.sphere_code = sphere_code
+        score_obj.project_title = project_title
+        score_obj.start_date = task.start_date
+        score_obj.finish_date = task.finish_date
         scores.append(score_obj)
 
-    scores.sort(key=lambda x: x.id)
+    scores.sort(key=lambda x: x.total, reverse=True)
     return scores

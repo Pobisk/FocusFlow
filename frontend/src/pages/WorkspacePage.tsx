@@ -142,6 +142,15 @@ export function WorkspacePage() {
           <h3 className="font-medium text-lg">⚙️ Настройки</h3>
           <p className="text-sm text-gray-500">Параметры алгоритмов и интерфейса</p>
         </button>
+
+        {/* Работа — отладка */}
+        <button
+          onClick={() => navigate('/work-debug')}
+          className="w-full p-4 bg-white rounded-xl shadow-sm border text-left hover:shadow-md hover:border-primary/30 transition cursor-pointer mb-2 opacity-60"
+        >
+          <h3 className="font-medium text-lg">🔬 Работа — отладка</h3>
+          <p className="text-sm text-gray-500">Отладка алгоритма выбора задачи</p>
+        </button>
       </div>
     </main>
   )

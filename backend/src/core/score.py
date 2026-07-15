@@ -112,6 +112,10 @@ def compute_score(
     return TaskScore(
         id=task.id,
         title=task.title,
+        sphere_code="",
+        project_title=None,
+        start_date=task.start_date,
+        finish_date=task.finish_date,
         proactive=proactive_raw,
         w_proactive=settings.w_proactive,
         importance=importance_raw,

@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field
 from uuid import UUID
+from datetime import datetime
 from schemas.today import TodayTaskRead
 
 
@@ -10,6 +11,12 @@ class TaskScore(BaseModel):
 
     id: UUID = Field(description="UUID задачи")
     title: str = Field(description="Название задачи")
+
+    # ── Дополнительные поля для дебага ─────────────────
+    sphere_code: str = Field(default="", description="Код сферы")
+    project_title: str | None = Field(default=None, description="Название проекта")
+    start_date: datetime = Field(description="Дата старта задачи")
+    finish_date: datetime = Field(description="Дата финиша задачи")
 
     # 7 пар: характеристика + вес из настроек
     # 1) Проактивность

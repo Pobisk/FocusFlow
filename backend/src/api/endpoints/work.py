@@ -264,6 +264,18 @@ async def get_work_task(
     settings = settings_result.scalar_one_or_none()
     delay_minutes = settings.delay_minutes if settings else 60
 
+    # Считаем общее количество активных задач на сегодня
+    total_result = await db.execute(
+        select(Task).where(
+            Task.user_id == user_id,
+            Task.status_id == TaskStatus.ACTIVE.value,
+            Task.finish_date >= local_date,
+            Task.start_date <= local_date,
+        )
+    )
+    all_tasks = total_result.scalars().all()
+    total_tasks = len(all_tasks)
+
     actual = await _read_task_actual_minutes(task.id, user_id, local_date, db)
     enriched = await _enrich_task(db, task, actual)
-    return WorkResponse(task=enriched, total_tasks=1, delay_minutes=delay_minutes)
+    return WorkResponse(task=enriched, total_tasks=total_tasks, delay_minutes=delay_minutes)
