@@ -657,13 +657,28 @@ export interface WorkResponse {
   delay_minutes: number
 }
 
+export interface WorkSelectResponse {
+  task_id: string | null
+}
+
 /**
- * Получить рекомендованную задачу для экрана «Работа».
- * @param localDate - UTC ISO строка (фронт конвертирует 00:00 локального времени в UTC)
- * @param taskId - если указан, переходим к конкретной задаче (с ракеты)
+ * Выбрать задачу для экрана «Работа» (запуск алгоритма).
+ * @param localDate - UTC ISO строка
+ * @returns task_id выбранной задачи или null
  */
-export async function getWork(localDate: string, taskId?: string): Promise<WorkResponse> {
+export async function selectWorkTask(localDate: string): Promise<WorkSelectResponse> {
   const params = new URLSearchParams({ local_date: localDate })
-  if (taskId) params.set('task_id', taskId)
-  return apiFetch<WorkResponse>(`/work?${params}`)
+  return apiFetch<WorkSelectResponse>(`/work/select?${params}`, {
+    method: 'POST',
+  })
+}
+
+/**
+ * Получить задачу для экрана «Работа» по task_id.
+ * @param taskId - UUID задачи
+ * @param localDate - UTC ISO строка
+ */
+export async function getWorkTask(taskId: string, localDate: string): Promise<WorkResponse> {
+  const params = new URLSearchParams({ local_date: localDate })
+  return apiFetch<WorkResponse>(`/work/${taskId}?${params}`)
 }

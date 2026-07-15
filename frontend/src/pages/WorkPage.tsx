@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getWork, updateTask, upsertTaskLog } from '@/lib/api'
+import { getWorkTask, updateTask, upsertTaskLog } from '@/lib/api'
 import { dateOnlyToUTC, getTodayLocalDate } from '@/lib/utils'
 
 export function WorkPage() {
@@ -9,26 +9,20 @@ export function WorkPage() {
   const [searchParams] = useSearchParams()
   const queryClient = useQueryClient()
 
-  // ── Если передан task_id — прямой переход ────
-  const taskIdParam = searchParams.get('task_id') ?? undefined
+  // ── task_id из URL — обязателен (переход с ракеты или с алгоритма) ──
+  const taskIdParam = searchParams.get('task_id')
 
   // ── Сегодняшняя дата ──────────────────────────
   const localDateStr = getTodayLocalDate()
   const todayUtc = dateOnlyToUTC(localDateStr)
 
-  // ── Загрузка задачи ───────────────────────────
-  const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['work', todayUtc, taskIdParam],
-    queryFn: () => getWork(todayUtc, taskIdParam),
+  // ── Загрузка задачи по task_id ────────────────
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['work', taskIdParam, todayUtc],
+    queryFn: () => getWorkTask(taskIdParam!, todayUtc),
+    enabled: !!taskIdParam,
     staleTime: 0,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
   })
-
-  // Принудительно перезапрашиваем при монтировании
-  useEffect(() => {
-    refetch()
-  }, [])
 
   const task = data?.task ?? null
   const totalTasks = data?.total_tasks ?? 0
@@ -109,9 +103,9 @@ export function WorkPage() {
   // ── Кнопка «Назад» — п.2.7 ────────────────────
   const handleBack = useCallback(() => {
     stopTimer()
-    queryClient.removeQueries({ queryKey: ['work', todayUtc] })
+    queryClient.removeQueries({ queryKey: ['work', taskIdParam, todayUtc] })
     navigate('/workspace')
-  }, [stopTimer, navigate, queryClient, todayUtc])
+  }, [stopTimer, navigate, queryClient, taskIdParam, todayUtc])
 
   // ── Кнопка «Сохранить» ────────────────────────
   const saveMutation = useMutation({
@@ -182,7 +176,7 @@ export function WorkPage() {
       }
     },
     onSuccess: () => {
-      queryClient.removeQueries({ queryKey: ['work', todayUtc] })
+      queryClient.removeQueries({ queryKey: ['work', taskIdParam, todayUtc] })
       navigate('/workspace')
     },
   })

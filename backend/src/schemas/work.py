@@ -61,3 +61,14 @@ class WorkResponse(BaseModel):
         default=60,
         description="Значение delay_minutes из настроек (для кнопки «Позже»)",
     )
+
+
+class WorkSelectResponse(BaseModel):
+    """Ответ эндпоинта POST /api/work/select.
+
+    Возвращает только task_id выбранной алгоритмом задачи.
+    """
+
+    task_id: UUID | None = Field(
+        description="UUID выбранной задачи. None если подходящих задач нет.",
+    )

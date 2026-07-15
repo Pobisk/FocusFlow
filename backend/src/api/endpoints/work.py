@@ -15,7 +15,7 @@ from models.goal import Goal
 from models.user_settings import UserSettings
 from core.score import compute_score
 from core.project import calc_speed
-from schemas.work import WorkResponse, TaskScore
+from schemas.work import WorkResponse, WorkSelectResponse, TaskScore
 from schemas.today import TodayTaskRead
 from core.auth import get_current_user_id
 
@@ -103,54 +103,16 @@ async def _enrich_task(
     )
 
 
-@router.get("", response_model=WorkResponse)
-async def get_work(
-    local_date: datetime = Query(
-        ...,
-        description="Сегодняшняя дата (UTC ISO 8601). "
-                    "Фронт конвертирует 00:00 локального времени в UTC и передаёт сюда.",
-    ),
-    task_id: UUID | None = Query(
-        default=None,
-        description="ID задачи для прямого перехода. Если указан — возвращаем её без алгоритма.",
-    ),
-    user_id: UUID = Depends(get_current_user_id),
-    db: AsyncSession = Depends(get_db),
-) -> WorkResponse:
-    """
-    Алгоритм выбора задачи для экрана «Работа».
+async def _run_selection_algorithm(
+    local_date: datetime,
+    user_id: UUID,
+    db: AsyncSession,
+) -> tuple[Task | None, int]:
+    """Алгоритм выбора задачи. Возвращает (выбранная задача, total_tasks).
 
-    🔐 Требует авторизацию (JWT Bearer token)
-    📋 Если передан task_id — возвращает указанную задачу (прямой переход с ракеты).
-    📋 Иначе — алгоритм выбирает задачу с максимальным Score.
+    Если подходящих задач нет — (None, total_tasks).
     """
     current_moment = datetime.now(timezone.utc)
-
-    # Загружаем настройки
-    settings_result = await db.execute(
-        select(UserSettings).where(UserSettings.user_id == user_id)
-    )
-    settings = settings_result.scalar_one_or_none()
-    if not settings:
-        return WorkResponse(task=None, total_tasks=0)
-
-    delay_minutes = settings.delay_minutes
-
-    # ── Прямой переход по task_id ────────────────────
-    if task_id:
-        result = await db.execute(
-            select(Task).where(
-                Task.id == task_id,
-                Task.user_id == user_id,
-            )
-        )
-        task = result.scalar_one_or_none()
-        if not task:
-            return WorkResponse(task=None, total_tasks=0)
-
-        actual = await _read_task_actual_minutes(task.id, user_id, local_date, db)
-        enriched = await _enrich_task(db, task, actual)
-        return WorkResponse(task=enriched, total_tasks=1, delay_minutes=delay_minutes)
 
     # ── 1. Все активные задачи на сегодня ─────────────
     stmt = select(Task).where(
@@ -163,7 +125,7 @@ async def get_work(
     all_tasks = result.scalars().all()
 
     if not all_tasks:
-        return WorkResponse(task=None, total_tasks=0, delay_minutes=delay_minutes)
+        return None, 0
 
     total_tasks = len(all_tasks)
 
@@ -177,9 +139,7 @@ async def get_work(
             real_end = apt.appointment_at + timedelta(minutes=apt.duration)
 
             if real_start <= current_moment <= real_end:
-                actual = await _read_task_actual_minutes(apt.id, user_id, local_date, db)
-                enriched = await _enrich_task(db, apt, actual)
-                return WorkResponse(task=enriched, total_tasks=total_tasks, delay_minutes=delay_minutes)
+                return apt, total_tasks
 
             if real_start > current_moment:
                 minutes_to = (real_start - current_moment).total_seconds() / 60
@@ -203,11 +163,18 @@ async def get_work(
         ]
 
     if not candidates:
-        return WorkResponse(task=None, total_tasks=total_tasks, delay_minutes=delay_minutes)
+        return None, total_tasks
 
     # ── 5. Считаем Score ──────────────────────────────
     project_cache: dict[UUID, float | None] = {}
     sphere_cache: dict[UUID, float | None] = {}
+
+    settings_result = await db.execute(
+        select(UserSettings).where(UserSettings.user_id == user_id)
+    )
+    settings = settings_result.scalar_one_or_none()
+    if not settings:
+        return None, total_tasks
 
     scored: list[tuple[TaskScore, Task]] = []
     for task in candidates:
@@ -236,8 +203,67 @@ async def get_work(
         scored.append((score_obj, task))
 
     scored.sort(key=lambda x: -x[0].total)
-    best_score, best_task = scored[0]
+    return scored[0][1], total_tasks
 
-    actual = await _read_task_actual_minutes(best_task.id, user_id, local_date, db)
-    enriched = await _enrich_task(db, best_task, actual)
-    return WorkResponse(task=enriched, total_tasks=total_tasks, delay_minutes=delay_minutes)
+
+@router.post("/select", response_model=WorkSelectResponse)
+async def select_work_task(
+    local_date: datetime = Query(
+        ...,
+        description="Сегодняшняя дата (UTC ISO 8601). "
+                    "Фронт конвертирует 00:00 локального времени в UTC и передаёт сюда.",
+    ),
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> WorkSelectResponse:
+    """
+    Выбрать задачу для экрана «Работа» (без обогащения).
+
+    🔐 Требует авторизацию (JWT Bearer token)
+    📋 Запускает алгоритм, возвращает только task_id (или null).
+    """
+    selected_task, total_tasks = await _run_selection_algorithm(
+        local_date, user_id, db,
+    )
+    return WorkSelectResponse(
+        task_id=selected_task.id if selected_task else None,
+    )
+
+
+@router.get("/{task_id}", response_model=WorkResponse)
+async def get_work_task(
+    task_id: UUID,
+    local_date: datetime = Query(
+        ...,
+        description="Сегодняшняя дата (UTC ISO 8601). "
+                    "Фронт конвертирует 00:00 локального времени в UTC и передаёт сюда.",
+    ),
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> WorkResponse:
+    """
+    Получить задачу для экрана «Работа» по task_id.
+
+    🔐 Требует авторизацию (JWT Bearer token)
+    📋 Возвращает полную информацию для отображения на экране работы.
+    """
+    result = await db.execute(
+        select(Task).where(
+            Task.id == task_id,
+            Task.user_id == user_id,
+        )
+    )
+    task = result.scalar_one_or_none()
+    if not task:
+        return WorkResponse(task=None, total_tasks=0)
+
+    # Загружаем настройки для delay_minutes
+    settings_result = await db.execute(
+        select(UserSettings).where(UserSettings.user_id == user_id)
+    )
+    settings = settings_result.scalar_one_or_none()
+    delay_minutes = settings.delay_minutes if settings else 60
+
+    actual = await _read_task_actual_minutes(task.id, user_id, local_date, db)
+    enriched = await _enrich_task(db, task, actual)
+    return WorkResponse(task=enriched, total_tasks=1, delay_minutes=delay_minutes)

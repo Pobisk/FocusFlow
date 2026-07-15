@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getUserName, clearSession } from '@/lib/auth'
+import { selectWorkTask } from '@/lib/api'
+import { dateOnlyToUTC, getTodayLocalDate } from '@/lib/utils'
 
 export function WorkspacePage() {
   const [userName, setUserName] = useState('')
+  const [isSelecting, setIsSelecting] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -18,6 +21,27 @@ export function WorkspacePage() {
   const handleLogout = () => {
     clearSession()
     navigate('/', { replace: true })
+  }
+
+  const handleWorkClick = async () => {
+    if (isSelecting) return
+    setIsSelecting(true)
+    try {
+      const localDateStr = getTodayLocalDate()
+      const todayUtc = dateOnlyToUTC(localDateStr)
+      const result = await selectWorkTask(todayUtc)
+      if (result.task_id) {
+        navigate(`/work?task_id=${result.task_id}`)
+      } else {
+        // Нет подходящих задач — всё равно на work, там покажет "Нет подходящих задач"
+        navigate('/work?no_task=1')
+      }
+    } catch {
+      // Ошибка запроса — всё равно переходим
+      navigate('/work?no_task=1')
+    } finally {
+      setIsSelecting(false)
+    }
   }
 
   return (
@@ -42,10 +66,11 @@ export function WorkspacePage() {
 
         {/* Работа */}
         <button
-          onClick={() => navigate('/work')}
-          className="w-full p-4 bg-white rounded-xl shadow-sm border text-left hover:shadow-md hover:border-primary/30 transition cursor-pointer mb-2"
+          onClick={handleWorkClick}
+          disabled={isSelecting}
+          className="w-full p-4 bg-white rounded-xl shadow-sm border text-left hover:shadow-md hover:border-primary/30 transition cursor-pointer mb-2 disabled:opacity-50"
         >
-          <h3 className="font-medium text-lg">🚀 Работа</h3>
+          <h3 className="font-medium text-lg">{isSelecting ? '⏳ Поиск задачи...' : '🚀 Работа'}</h3>
           <p className="text-sm text-gray-500">Рекомендованная задача для выполнения</p>
         </button>
 
