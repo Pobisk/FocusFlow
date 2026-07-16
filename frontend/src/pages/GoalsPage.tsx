@@ -497,7 +497,7 @@ export function GoalsPage() {
           </div>
         )}
 
-        {!isLoading && !isError && filteredGoals.length === 0 && (
+                {!isLoading && !isError && filteredGoals.length === 0 && (
           <div className="text-center py-12 text-gray-400">
             {filterCode
               ? 'Нет целей в этой сфере'
@@ -506,108 +506,87 @@ export function GoalsPage() {
         )}
 
         {!isLoading && !isError && filteredGoals.length > 0 && (
-          <div className="grid gap-4 md:grid-cols-2">
-            {filteredGoals.map((goal) => {
-              const color = goal.status_color ?? STATUS_COLORS[goal.status_id] ?? '#6b7280'
-              const isActive = goal.status_id === 1
-              const isCancelled = goal.status_id === 3
-
-              return (
-                <div
-                  key={goal.id}
-                  className={cn(
-                    'bg-white rounded-xl shadow-sm border p-5 flex flex-col gap-3 transition',
-                    isCancelled && 'opacity-60',
-                  )}
-                  style={{
-                    borderColor: isActive ? `${color}40` : undefined,
-                  }}
-                >
-                  {/* Верхняя строка: код сферы + статус */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="w-10 h-10 rounded-lg font-bold flex items-center justify-center text-lg"
-                        style={{
-                          backgroundColor: `${color}18`,
-                          color: color,
-                        }}
-                      >
+          <>
+            {/* Десктоп-таблица */}
+            <div className="hidden md:block">
+              <table className="w-full text-sm bg-white rounded-xl shadow-sm border">
+                <thead>
+                  <tr className="border-b bg-gray-50">
+                    <th className="text-center px-4 py-3 font-medium text-gray-700 w-12">Сф</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Название</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700 w-28">Статус</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700 w-28">Срок</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredGoals.map((goal) => (
+                    <tr key={goal.id} className="border-b last:border-b-0 hover:bg-gray-50 transition">
+                      <td className="px-4 py-3 text-center font-mono text-gray-600">
                         {goal.sphere_code}
-                      </span>
-                      <div>
-                        <h3 className="font-medium text-gray-900">{goal.title}</h3>
-                        <p className="text-xs text-gray-400">{goal.sphere_name}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => openEditModal(goal)}
+                          className="text-primary hover:text-primary/80 hover:underline text-left"
+                        >
+                          {goal.title}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <StatusBadge
+                          statusId={goal.status_id}
+                          statusName={goal.status_name}
+                          statusColor={goal.status_color}
+                        />
+                      </td>
+                                            <td className="px-4 py-3 text-center text-gray-700 tabular-nums">
+                        {goal.deadline
+                          ? new Date(goal.deadline).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Мобильные карточки */}
+            <div className="md:hidden space-y-2">
+              {filteredGoals.map((goal) => {
+                const isCancelled = goal.status_id === 3
+                return (
+                  <div
+                    key={goal.id}
+                    className={`bg-white rounded-lg shadow-sm border p-4 ${isCancelled ? 'opacity-60' : ''}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono text-gray-500 shrink-0">
+                          {goal.sphere_code}
+                        </span>
+                        <button
+                          onClick={() => openEditModal(goal)}
+                          className="text-primary hover:text-primary/80 hover:underline text-left truncate"
+                        >
+                          {goal.title}
+                        </button>
                       </div>
+                      <StatusBadge
+                        statusId={goal.status_id}
+                        statusName={goal.status_name}
+                        statusColor={goal.status_color}
+                      />
                     </div>
-                    <StatusBadge
-                      statusId={goal.status_id}
-                      statusName={goal.status_name}
-                      statusColor={goal.status_color}
-                    />
-                  </div>
-
-                  {/* Описание */}
-                  {goal.description && (
-                    <p className="text-sm text-gray-500 line-clamp-2">
-                      {goal.description}
-                    </p>
-                  )}
-
-                  {/* Дедлайн */}
-                                    {goal.deadline && (
-                    <div className="text-xs text-gray-500">
-                      Срок: {formatDateLocal(goal.deadline)}
+                    <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                      {goal.deadline && (
+                        <span>Срок: {formatDateLocal(goal.deadline)}</span>
+                      )}
                     </div>
-                  )}
-
-                  {/* Кнопки действий */}
-                  <div className="flex gap-2 pt-1 border-t border-gray-100">
-                    <button
-                      onClick={() => openEditModal(goal)}
-                      className="flex-1 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-                    >
-                      {isActive ? 'Редактировать' : 'Открыть'}
-                    </button>
-                    {isActive && (
-                      <button
-                        onClick={() => setDeletingGoal(goal)}
-                        className="flex-1 px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition"
-                      >
-                        Отменить
-                      </button>
-                    )}
-                    {goal.status_id === 2 && (
-                      <button
-                        onClick={() =>
-                          updateMutation.mutate({
-                            id: goal.id,
-                            data: { status_id: 1 },
-                          })
-                        }
-                        className="flex-1 px-3 py-1.5 text-sm text-green-600 border border-green-200 rounded-lg hover:bg-green-50 transition"
-                      >
-                        Вернуть в работу
-                      </button>
-                    )}
-                    {goal.status_id === 3 && (
-                      <button
-                        onClick={() =>
-                          updateMutation.mutate({
-                            id: goal.id,
-                            data: { status_id: 1 },
-                          })
-                        }
-                        className="flex-1 px-3 py-1.5 text-sm text-green-600 border border-green-200 rounded-lg hover:bg-green-50 transition"
-                      >
-                        Вернуть в работу
-                      </button>
-                    )}
                   </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          </>
         )}
       </div>
 
