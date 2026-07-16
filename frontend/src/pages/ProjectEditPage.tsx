@@ -48,9 +48,10 @@ export function ProjectEditPage() {
   })
 
   // ── Список задач проекта (если редактируем) ────────
+  const [showAllTasks, setShowAllTasks] = useState(false)
   const { data: projectTasks = [] } = useQuery({
-    queryKey: ['projectTasks', id],
-    queryFn: () => getTasks({ project_id: id!, show_all: true }),
+    queryKey: ['projectTasks', id, showAllTasks],
+    queryFn: () => getTasks({ project_id: id!, show_all: showAllTasks ? 'true' : undefined }),
     enabled: !isNew,
   })
 
@@ -328,40 +329,53 @@ export function ProjectEditPage() {
             </div>
           </div>
 
-          {/* Прогресс */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Прогресс: {progress}%
-            </label>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={progress}
-              onChange={(e) => setProgress(Number(e.target.value))}
-              className="w-full accent-primary"
-            />
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>0%</span>
-              <span>100%</span>
+          {/* Прогресс (только для редактирования) */}
+          {!isNew && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Прогресс: {progress}%
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={progress}
+                onChange={(e) => setProgress(Number(e.target.value))}
+                className="w-full accent-primary"
+              />
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>0%</span>
+                <span>100%</span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* ── Список задач проекта (только для редактирования) ── */}
           {!isNew && (
             <div className="pt-4 border-t">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-medium text-gray-700">Задачи проекта</h2>
-                <button
-                  onClick={() =>
-                    navigate(
-                      `/tasks/new?project_id=${id}&sphere_id=${sphereId}&goal_id=${goalId || ''}`,
-                    )
-                  }
-                  className="px-3 py-1.5 text-xs text-white bg-primary rounded-lg hover:bg-primary/90 transition"
-                >
-                  + Добавить задачу
-                </button>
+                <div className="flex items-center gap-3">
+                  <label className="inline-flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showAllTasks}
+                      onChange={(e) => setShowAllTasks(e.target.checked)}
+                      className="rounded border-gray-300 w-3.5 h-3.5"
+                    />
+                    Все
+                  </label>
+                  <button
+                    onClick={() =>
+                      navigate(
+                        `/tasks/new?project_id=${id}&sphere_id=${sphereId}&goal_id=${goalId || ''}`,
+                      )
+                    }
+                    className="px-3 py-1.5 text-xs text-white bg-primary rounded-lg hover:bg-primary/90 transition"
+                  >
+                    + Добавить задачу
+                  </button>
+                </div>
               </div>
 
               {projectTasks.length === 0 ? (

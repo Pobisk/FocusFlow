@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getTasks, getSpheres, type Task } from '@/lib/api'
 import { IntervalFilter, type IntervalValue } from '@/components/IntervalFilter'
-import { dateOnlyToUTC, formatDateTimeLocal } from '@/lib/utils'
+import { dateOnlyToUTC, formatDateTimeLocal, getTodayLocalDate } from '@/lib/utils'
 
 export function TasksPage() {
   const navigate = useNavigate()
@@ -11,7 +11,10 @@ export function TasksPage() {
   const [onlyStandalone, setOnlyStandalone] = useState(false)
   const [onlyAppointments, setOnlyAppointments] = useState(false)
   const [selectedSphere, setSelectedSphere] = useState<string | null>(null)
-  const [interval, setInterval] = useState<IntervalValue | null>(null)
+  const [interval, setInterval] = useState<IntervalValue>(() => {
+    const today = getTodayLocalDate()
+    return { type: 'day' as const, start: today, end: today }
+  })
 
   const { data: spheres = [] } = useQuery({
     queryKey: ['spheres'],
@@ -26,10 +29,8 @@ export function TasksPage() {
       if (showAll) params.show_all = 'true'
       if (onlyStandalone) params.only_standalone = 'true'
       if (onlyAppointments) params.only_appointments = 'true'
-      if (interval) {
-        params.interval_start = dateOnlyToUTC(interval.start)
-        params.interval_end = dateOnlyToUTC(interval.end)
-      }
+      params.interval_start = dateOnlyToUTC(interval.start)
+      params.interval_end = dateOnlyToUTC(interval.end)
       return getTasks(params as any)
     },
   })

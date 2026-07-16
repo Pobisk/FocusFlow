@@ -1,15 +1,31 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getProjects, getSpheres, type Project } from '@/lib/api'
 import { IntervalFilter, type IntervalValue } from '@/components/IntervalFilter'
-import { dateOnlyToUTC } from '@/lib/utils'
+import { dateOnlyToUTC, getTodayLocalDate } from '@/lib/utils'
 
 export function ProjectsPage() {
   const navigate = useNavigate()
   const [showAll, setShowAll] = useState(false)
   const [selectedSphere, setSelectedSphere] = useState<string | null>(null)
-  const [interval, setInterval] = useState<IntervalValue | null>(null)
+  const [interval, setInterval] = useState<IntervalValue>(() => {
+    // Инициализируем сразу — текущая неделя
+    const today = new Date()
+    const dayOfWeek = today.getDay()
+    const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1 // понедельник
+    const monday = new Date(today)
+    monday.setDate(today.getDate() - diff)
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+    const fmt = (d: Date) => {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${day}`
+    }
+    return { type: 'week' as const, start: fmt(monday), end: fmt(sunday) }
+  })
 
   const { data: spheres = [] } = useQuery({
     queryKey: ['spheres'],
@@ -22,11 +38,9 @@ export function ProjectsPage() {
       const params: Record<string, string | undefined> = {}
       if (selectedSphere) params.sphere_id = selectedSphere
       if (showAll) params.show_all = 'true'
-      if (interval) {
-        // Конвертируем локальные даты в UTC для отправки на бэк
-        params.interval_start = dateOnlyToUTC(interval.start)
-        params.interval_end = dateOnlyToUTC(interval.end)
-      }
+      // interval всегда не-null
+      params.interval_start = dateOnlyToUTC(interval.start)
+      params.interval_end = dateOnlyToUTC(interval.end)
       return getProjects(params as any)
     },
   })

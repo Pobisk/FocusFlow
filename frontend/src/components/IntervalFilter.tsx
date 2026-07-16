@@ -150,10 +150,8 @@ export function IntervalFilter({ defaultType = 'week', onChange }: IntervalFilte
     setTimeout(() => notify(type, newDate), 0)
   }
 
-  // Инициализация при первом рендере
-  useState(() => {
-    setTimeout(() => notify(type, baseDate), 0)
-  })
+  // Инициализация при первом рендере — убрано, родитель сам задаёт начальное значение
+  // useState(() => { setTimeout(() => notify(type, baseDate), 0) })
 
   return (
     <div className="flex flex-col items-center gap-1">

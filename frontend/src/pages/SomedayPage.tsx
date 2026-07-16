@@ -290,7 +290,7 @@ export function SomedayPage() {
 
       {/* ── Мини-диалог добавления/редактирования ── */}
       {showDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={closeDialog}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div
             className="bg-white rounded-xl shadow-xl border p-6 w-full max-w-sm mx-4"
             onClick={(e) => e.stopPropagation()}

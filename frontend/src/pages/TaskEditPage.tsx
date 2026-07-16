@@ -167,6 +167,11 @@ export function TaskEditPage() {
 
   // Когда меняется сфера — сбрасываем цель, если она не из этой сферы
   const filteredGoals = goals.filter((g) => g.sphere_id === sphereId)
+  useEffect(() => {
+    if (goalId && !filteredGoals.some((g) => g.id === goalId)) {
+      setGoalId('')
+    }
+  }, [sphereId])
 
   // Для встречи: start_date = finish_date = appointmentDate
   useEffect(() => {
@@ -264,6 +269,8 @@ export function TaskEditPage() {
     const updateData: TaskUpdate = {
       title: title.trim(),
       description: description.trim() || null,
+      sphere_id: isProjectTask ? undefined : sphereId,
+      goal_id: isProjectTask ? undefined : (goalId || null),
       start_date: dateOnlyToUTC(finalStartDate),
       finish_date: dateOnlyToUTC(finalFinishDate),
       appointment_at: appointmentAt,
@@ -652,12 +659,13 @@ export function TaskEditPage() {
             </div>
           </div>
 
-          {/* ── Прогресс ── */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Прогресс: {progress}%
-            </label>
-            <input
+          {/* ── Прогресс (только для редактирования) ── */}
+          {!isNew && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Прогресс: {progress}%
+              </label>
+              <input
               type="range"
               min={0}
               max={100}
@@ -669,7 +677,8 @@ export function TaskEditPage() {
               <span>0%</span>
               <span>100%</span>
             </div>
-          </div>
+            </div>
+          )}
 
           {/* ── Read-only: откладывание ── */}
           {delayTo && (
@@ -785,7 +794,7 @@ export function TaskEditPage() {
 
       {/* ── Мини-диалог для ввода/редактирования трудозатрат ── */}
       {showLogDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setShowLogDialog(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div
             className="bg-white rounded-xl shadow-xl border p-6 w-full max-w-sm mx-4"
             onClick={(e) => e.stopPropagation()}
