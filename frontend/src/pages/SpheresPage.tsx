@@ -10,44 +10,8 @@ import {
   type SphereCreate,
   type SphereUpdate,
 } from '@/lib/api'
-import { SphereFilter } from '@/components/SphereFilter'
-import { cn } from '@/lib/utils'
 
-// ── Вспомогательные компоненты ───────────────────────
-
-function StarRating({
-  value,
-  onChange,
-  readonly = false,
-}: {
-  value: number
-  onChange?: (v: number) => void
-  readonly?: boolean
-}) {
-  return (
-    <div className="flex gap-0.5">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <button
-          key={star}
-          type="button"
-          disabled={readonly}
-          onClick={() => onChange?.(star)}
-          className={cn(
-            'text-lg transition-colors',
-            readonly ? 'cursor-default' : 'cursor-pointer hover:scale-110',
-            star <= Math.round(value)
-              ? 'text-yellow-400'
-              : 'text-gray-200',
-          )}
-        >
-          ★
-        </button>
-      ))}
-    </div>
-  )
-}
-
-// ── Модальное окно ───────────────────────────────────
+// ── Модальное окно добавления/редактирования ────────
 
 interface SphereFormModalProps {
   mode: 'create' | 'edit'
@@ -66,10 +30,11 @@ function SphereFormModal({
   onSave,
   isSaving,
 }: SphereFormModalProps) {
-  const [code, setCode] = useState(sphere?.code ?? '')
+    const [code, setCode] = useState(sphere?.code ?? '')
   const [name, setName] = useState(sphere?.name ?? '')
   const [order, setOrder] = useState(sphere?.order ?? 0)
   const [satisfaction, setSatisfaction] = useState(sphere?.satisfaction ?? 3)
+  const [isActive, setIsActive] = useState(sphere?.is_active ?? true)
 
   // Синхронизация состояния формы при открытии/смене редактируемой сферы
   const prevSphereRef = useRef(sphere)
@@ -82,6 +47,7 @@ function SphereFormModal({
       setName(sphere?.name ?? '')
       setOrder(sphere?.order ?? 0)
       setSatisfaction(sphere?.satisfaction ?? 3)
+      setIsActive(sphere?.is_active ?? true)
     }
     prevSphereRef.current = sphere
     prevOpenRef.current = open
@@ -91,14 +57,15 @@ function SphereFormModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (mode === 'create') {
-      onSave({ code, name, order, satisfaction } satisfies SphereCreate)
+        if (mode === 'create') {
+      onSave({ code, name, order, satisfaction } as SphereCreate)
     } else {
       const data: SphereUpdate = {}
       if (code !== sphere?.code) data.code = code
       if (name !== sphere?.name) data.name = name
       if (order !== sphere?.order) data.order = order
       if (satisfaction !== sphere?.satisfaction) data.satisfaction = satisfaction
+      if (isActive !== sphere?.is_active) data.is_active = isActive
       onSave(data)
     }
   }
@@ -147,12 +114,33 @@ function SphereFormModal({
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
           </div>
-          <div>
+                    <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Удовлетворённость
+              Удовлетворённость: {satisfaction.toFixed(1)}
             </label>
-            <StarRating value={satisfaction} onChange={setSatisfaction} />
+            <input
+              type="range"
+              min={0}
+              max={5}
+              step={0.1}
+              value={satisfaction}
+              onChange={(e) => setSatisfaction(Number(e.target.value))}
+              className="w-full accent-primary"
+            />
+            <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <span>0</span>
+              <span>5</span>
+            </div>
           </div>
+          <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isActive}
+              onChange={(e) => setIsActive(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            Активна
+          </label>
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
@@ -227,15 +215,15 @@ function ConfirmDeleteModal({
 export function SpheresPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [filterCode, setFilterCode] = useState<string | null>(null)
+  const [showAll, setShowAll] = useState(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editingSphere, setEditingSphere] = useState<Sphere | undefined>()
   const [deletingSphere, setDeletingSphere] = useState<Sphere | null>(null)
 
   // Запрос списка сфер
   const { data: spheres = [], isLoading, isError, error } = useQuery({
-    queryKey: ['spheres'],
-    queryFn: getSpheres,
+    queryKey: ['spheres', showAll],
+    queryFn: () => getSpheres(showAll || undefined),
   })
 
   // Мутация создания
@@ -266,19 +254,6 @@ export function SpheresPage() {
       setDeletingSphere(null)
     },
   })
-
-  // Мутация изменения satisfaction (мгновенное сохранение)
-  const satisfactionMutation = useMutation({
-    mutationFn: ({ id, satisfaction }: { id: string; satisfaction: number }) =>
-      updateSphere(id, { satisfaction }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['spheres'] })
-    },
-  })
-
-  const filteredSpheres = filterCode
-    ? spheres.filter((s) => s.code === filterCode)
-    : spheres
 
   const handleSave = (data: SphereCreate | SphereUpdate) => {
     if (modalMode === 'create') {
@@ -325,23 +300,25 @@ export function SpheresPage() {
             <p className="text-gray-600 mt-1 text-sm">
               Управляйте своими сферами жизни
             </p>
+                    </div>
+          <div className="flex items-center gap-3">
+            <label className="inline-flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showAll}
+                onChange={(e) => setShowAll(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              Все
+            </label>
+            <button
+              onClick={openCreateModal}
+              className="px-4 py-2 text-sm text-white bg-primary rounded-lg hover:bg-primary/90 transition"
+            >
+              + Добавить сферу
+            </button>
           </div>
-          <button
-            onClick={openCreateModal}
-            className="px-4 py-2 text-sm text-white bg-primary rounded-lg hover:bg-primary/90 transition"
-          >
-            + Добавить сферу
-          </button>
         </header>
-
-        {/* Фильтр */}
-        <div className="mb-6">
-          <SphereFilter
-            spheres={spheres}
-            selected={filterCode}
-            onSelect={setFilterCode}
-          />
-        </div>
 
         {/* Состояния загрузки/ошибки */}
         {isLoading && (
@@ -354,69 +331,90 @@ export function SpheresPage() {
           </div>
         )}
 
-        {/* Список сфер */}
+                {/* Список сфер */}
         {!isLoading && !isError && (
-          <div className="grid gap-4 md:grid-cols-2">
-            {filteredSpheres.length === 0 && (
-              <div className="col-span-full text-center py-12 text-gray-400">
-                {filterCode
-                  ? 'Нет сфер с таким кодом'
-                  : 'Сферы пока не добавлены. Нажмите "+ Добавить сферу"'}
-              </div>
-            )}
+          <>
+            {/* Десктоп-таблица */}
+            <div className="hidden md:block">
+              <table className="w-full text-sm bg-white rounded-xl shadow-sm border">
+                <thead>
+                  <tr className="border-b bg-gray-50">
+                    <th className="text-center px-4 py-3 font-medium text-gray-700 w-14">Код</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Название</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700 w-20">Порядок</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700 w-28">Удовл.</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700 w-16">Активна</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {spheres.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-12 text-gray-400">
+                        Сферы пока не добавлены. Нажмите "+ Добавить сферу"
+                      </td>
+                    </tr>
+                  ) : (
+                    spheres.map((sphere) => (
+                      <tr key={sphere.id} className="border-b last:border-b-0 hover:bg-gray-50 transition">
+                        <td className="px-4 py-3 text-center font-mono text-gray-600">{sphere.code}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => openEditModal(sphere)}
+                            className="text-primary hover:text-primary/80 hover:underline text-left"
+                          >
+                            {sphere.name}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-center text-gray-700">{sphere.order}</td>
+                        <td className="px-4 py-3 text-center text-gray-700 tabular-nums">{sphere.satisfaction.toFixed(1)}</td>
+                        <td className="px-4 py-3 text-center">
+                          {sphere.is_active ? (
+                            <span className="text-green-500 text-lg">✓</span>
+                          ) : (
+                            <span className="text-red-400 text-lg">✗</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-            {filteredSpheres.map((sphere) => (
-              <div
-                key={sphere.id}
-                className="bg-white rounded-xl shadow-sm border p-5 flex flex-col gap-3"
-              >
-                {/* Верхняя строка: код + название */}
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="w-10 h-10 rounded-lg bg-primary/10 text-primary font-bold flex items-center justify-center text-lg">
-                      {sphere.code}
-                    </span>
-                    <div>
-                      <h3 className="font-medium text-gray-900">{sphere.name}</h3>
-                      <p className="text-xs text-gray-400">
-                        Порядок: {sphere.order}
-                      </p>
+            {/* Мобильные карточки */}
+            <div className="md:hidden space-y-2">
+              {spheres.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  Сферы пока не добавлены. Нажмите "+ Добавить сферу"
+                </div>
+              ) : (
+                spheres.map((sphere) => (
+                  <div key={sphere.id} className="bg-white rounded-lg shadow-sm border p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono text-gray-500 shrink-0">{sphere.code}</span>
+                        <button
+                          onClick={() => openEditModal(sphere)}
+                          className="text-primary hover:text-primary/80 hover:underline text-left truncate"
+                        >
+                          {sphere.name}
+                        </button>
+                      </div>
+                      {sphere.is_active ? (
+                        <span className="text-green-500 shrink-0">✓</span>
+                      ) : (
+                        <span className="text-red-400 shrink-0">✗</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                                            <span>Порядок: {sphere.order}</span>
+                      <span>Удовлетворенность: {sphere.satisfaction.toFixed(1)}</span>
                     </div>
                   </div>
-                </div>
-
-                {/* Оценка удовлетворённости */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Удовлетворённость</span>
-                  <StarRating
-                    value={sphere.satisfaction}
-                    onChange={(v) =>
-                      satisfactionMutation.mutate({
-                        id: sphere.id,
-                        satisfaction: v,
-                      })
-                    }
-                  />
-                </div>
-
-                {/* Кнопки действий */}
-                <div className="flex gap-2 pt-1 border-t border-gray-100">
-                  <button
-                    onClick={() => openEditModal(sphere)}
-                    className="flex-1 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-                  >
-                    Редактировать
-                  </button>
-                  <button
-                    onClick={() => setDeletingSphere(sphere)}
-                    className="flex-1 px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition"
-                  >
-                    Удалить
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+                ))
+              )}
+            </div>
+          </>
         )}
       </div>
 

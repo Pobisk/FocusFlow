@@ -159,8 +159,9 @@ export interface SphereUpdate {
   satisfaction?: number
 }
 
-export async function getSpheres(): Promise<Sphere[]> {
-  return apiFetch<Sphere[]>('/spheres')
+export async function getSpheres(showAll?: boolean): Promise<Sphere[]> {
+  const params = showAll ? '?show_all=true' : ''
+  return apiFetch<Sphere[]>(`/spheres${params}`)
 }
 
 export async function createSphere(data: SphereCreate): Promise<Sphere> {

@@ -1,5 +1,5 @@
 """Sphere endpoints - life areas CRUD and satisfaction history."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
@@ -20,20 +20,20 @@ router = APIRouter(prefix="/spheres", tags=["spheres"])
 
 @router.get("", response_model=list[SphereRead], status_code=status.HTTP_200_OK)
 async def get_spheres(
+    show_all: bool = Query(default=False, description="Показать все сферы, включая неактивные"),
     user_id: UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> list[Sphere]:
     """
-    Получить список активных сфер жизни для текущего пользователя.
+    Получить список сфер жизни для текущего пользователя.
 
     🔐 Требует авторизацию (JWT Bearer token)
-    📋 Возвращает только активные сферы, отсортированные по полю order
+    📋 По умолчанию — только активные сферы, отсортированные по полю order
     """
-    statement = (
-        select(Sphere)
-        .where(Sphere.user_id == user_id, Sphere.is_active == True)
-        .order_by(Sphere.order)
-    )
+    statement = select(Sphere).where(Sphere.user_id == user_id)
+    if not show_all:
+        statement = statement.where(Sphere.is_active == True)
+    statement = statement.order_by(Sphere.order)
 
     result = await db.execute(statement)
     spheres = result.scalars().all()
