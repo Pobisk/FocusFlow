@@ -110,11 +110,14 @@ export function WorkspacePage() {
           <p className="text-sm text-gray-500">Когда-нибудь может быть</p>
         </button>
 
-        {/* Отчёт — неактивна */}
-        <div className="w-full p-4 bg-white rounded-xl shadow-sm border opacity-50 mb-2">
+        {/* Отчёт */}
+        <button
+          onClick={() => navigate('/report')}
+          className="w-full p-4 bg-white rounded-xl shadow-sm border text-left hover:shadow-md hover:border-primary/30 transition cursor-pointer mb-2"
+        >
           <h3 className="font-medium text-lg">📊 Отчёт</h3>
           <p className="text-sm text-gray-500">Аналитика вашей продуктивности</p>
-        </div>
+        </button>
 
         {/* Цели */}
         <button

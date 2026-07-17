@@ -13,6 +13,7 @@ import { ProjectEditPage } from '@/pages/ProjectEditPage'
 import { TasksPage } from '@/pages/TasksPage'
 import { TaskEditPage } from '@/pages/TaskEditPage'
 import { SomedayPage } from '@/pages/SomedayPage'
+import { ReportPage } from '@/pages/ReportPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 
 const queryClient = new QueryClient()
@@ -36,6 +37,7 @@ export function App() {
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/tasks/:id" element={<TaskEditPage />} />
             <Route path="/someday" element={<SomedayPage />} />
+            <Route path="/report" element={<ReportPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

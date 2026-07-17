@@ -683,3 +683,42 @@ export async function getWorkTask(taskId: string, localDate: string): Promise<Wo
   const params = new URLSearchParams({ local_date: localDate })
   return apiFetch<WorkResponse>(`/work/${taskId}?${params}`)
 }
+
+// ── Report API ─────────────────────────────────────
+
+export interface ReportItem {
+  order: number
+  caption: string
+  plan_minutes: number
+  fact_minutes: number
+  fact_percent: number
+  goal_minutes: number
+  goal_percent: number
+}
+
+export interface ReportResponse {
+  items: ReportItem[]
+  total: ReportItem
+}
+
+export type IntervalType = 'week' | 'month' | 'quarter' | 'year'
+
+/**
+ * Получить отчёт о трудозатратах.
+ * @param intervalType - тип интервала
+ * @param firstDay - первый день интервала в формате YYYY-MM-DD (локальная дата)
+ */
+export async function getReport(
+  intervalType: IntervalType,
+  firstDay: string,
+): Promise<ReportResponse> {
+  const params = new URLSearchParams({
+    interval_type: intervalType,
+    first_day: firstDay,
+  })
+  return apiFetch<ReportResponse>(`/report?${params}`)
+}
+
+// ── Report API ─────────────────────────────────────
+
+
