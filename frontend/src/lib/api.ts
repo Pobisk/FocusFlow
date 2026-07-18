@@ -706,15 +706,18 @@ export type IntervalType = 'week' | 'month' | 'quarter' | 'year'
 /**
  * Получить отчёт о трудозатратах.
  * @param intervalType - тип интервала
- * @param firstDay - первый день интервала в формате YYYY-MM-DD (локальная дата)
+ * @param intervalStart - первый день интервала (UTC), 00:00
+ * @param intervalEnd - последний день интервала (UTC), 00:00
  */
 export async function getReport(
   intervalType: IntervalType,
-  firstDay: string,
+  intervalStart: string,
+  intervalEnd: string,
 ): Promise<ReportResponse> {
   const params = new URLSearchParams({
     interval_type: intervalType,
-    first_day: firstDay,
+    interval_start: intervalStart,
+    interval_end: intervalEnd,
   })
   return apiFetch<ReportResponse>(`/report?${params}`)
 }

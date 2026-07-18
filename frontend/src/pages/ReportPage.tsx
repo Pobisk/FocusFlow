@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getReport, type ReportItem } from '@/lib/api'
 import { IntervalFilter, type IntervalValue, type IntervalType } from '@/components/IntervalFilter'
+import { dateOnlyToUTC } from '@/lib/utils'
 
 // ── Конвертация типа интервала для бэка ─────────────
 
@@ -72,11 +73,10 @@ export function ReportPage() {
   })
 
   const intervalType = mapIntervalType(interval.type)
-  const firstDay = interval.start
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['report', intervalType, firstDay],
-    queryFn: () => getReport(intervalType, firstDay),
+    queryKey: ['report', intervalType, interval.start, interval.end],
+    queryFn: () => getReport(intervalType, dateOnlyToUTC(interval.start), dateOnlyToUTC(interval.end)),
   })
 
   return (
