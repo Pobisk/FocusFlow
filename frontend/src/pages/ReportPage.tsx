@@ -15,7 +15,7 @@ function mapIntervalType(t: IntervalType): 'week' | 'month' | 'quarter' | 'year'
 
 // ── Компонент гистограммы ──────────────────────────
 
-function BarRow({ item }: { item: ReportItem }) {
+function BarRow({ item, showMinutes }: { item: ReportItem; showMinutes: boolean }) {
   const maxWidth = 100 // %
   const factWidth = Math.min(item.fact_percent, maxWidth)
   const goalWidth = Math.min(item.goal_percent, maxWidth)
@@ -41,9 +41,11 @@ function BarRow({ item }: { item: ReportItem }) {
         />
       </div>
 
-      {/* Подписи */}
+      {/* Подписи — % или минуты */}
       <div className="w-20 text-right text-xs text-gray-500 tabular-nums shrink-0">
-        {item.fact_minutes} / {item.goal_minutes} мин
+        {showMinutes
+          ? `${item.fact_minutes} / ${item.goal_minutes} мин`
+          : `${item.fact_percent.toFixed(0)}% / ${item.goal_percent.toFixed(0)}%`}
       </div>
     </div>
   )
@@ -74,6 +76,8 @@ export function ReportPage() {
 
   const intervalType = mapIntervalType(interval.type)
 
+  const [showMinutes, setShowMinutes] = useState(false)
+
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['report', intervalType, interval.start, interval.end],
     queryFn: () => getReport(intervalType, dateOnlyToUTC(interval.start), dateOnlyToUTC(interval.end)),
@@ -98,8 +102,21 @@ export function ReportPage() {
               </p>
             </div>
 
-            {/* Контрол интервала как на проектах/задачах */}
-            <IntervalFilter defaultType="week" onChange={setInterval} />
+            <div className="flex items-center gap-4 flex-wrap">
+              {/* Переключатель мин/% */}
+              <label className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer select-none shrink-0">
+                <input
+                  type="checkbox"
+                  checked={showMinutes}
+                  onChange={(e) => setShowMinutes(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                мин
+              </label>
+
+              {/* Контрол интервала как на проектах/задачах */}
+              <IntervalFilter defaultType="week" onChange={setInterval} />
+            </div>
           </div>
         </header>
 
@@ -119,7 +136,7 @@ export function ReportPage() {
           <div className="bg-white rounded-xl shadow-sm border p-6">
             <div className="space-y-1">
               {data.items.map((item) => (
-                <BarRow key={item.order} item={item} />
+                <BarRow key={item.order} item={item} showMinutes={showMinutes} />
               ))}
             </div>
 
@@ -127,14 +144,24 @@ export function ReportPage() {
             <div className="border-t my-4" />
 
             {/* Суммарная строка */}
-            <BarRow item={data.total} />
+            <BarRow item={data.total} showMinutes={showMinutes} />
 
             {/* Сводка внизу */}
             <div className="mt-4 pt-4 border-t text-sm text-gray-600">
               <span className="font-medium">За интервал: </span>
-              Факт <span className="tabular-nums">{data.total.fact_percent.toFixed(1)}%</span>
-              {' / '}
-              Цель <span className="tabular-nums">{data.total.goal_percent.toFixed(1)}%</span>
+              {showMinutes ? (
+                <>
+                  Факт <span className="tabular-nums">{data.total.fact_minutes}</span> мин
+                  {' / '}
+                  Цель <span className="tabular-nums">{data.total.goal_minutes}</span> мин
+                </>
+              ) : (
+                <>
+                  Факт <span className="tabular-nums">{data.total.fact_percent.toFixed(1)}%</span>
+                  {' / '}
+                  Цель <span className="tabular-nums">{data.total.goal_percent.toFixed(1)}%</span>
+                </>
+              )}
             </div>
 
             {/* Легенда */}

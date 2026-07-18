@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlmodel import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 from typing import Literal
 
 from db.session import get_db
@@ -26,12 +26,12 @@ MONTH_NAMES_SHORT = ["", "янв", "фев", "мар", "апр", "май", "ию
 DAY_CAPTIONS = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
 
 
-def _weeks_in_interval(first_day: datetime, last_day: datetime) -> list[tuple[datetime, datetime]]:
+def _weeks_in_interval(first_day: datetime, last_day: datetime, local_start: date) -> list[tuple[datetime, datetime]]:
     """Возвращает список (пн, вс) недель, входящих в интервал (>=4 дней внутри).
     Все даты в UTC.
+    local_start — первый день интервала в локальном времени клиента (для определения дня недели).
     """
-    first = first_day.date()
-    monday = first_day - timedelta(days=first.weekday() + 1)
+    monday = first_day - timedelta(days=local_start.weekday())
 
     weeks: list[tuple[datetime, datetime]] = []
     while monday <= last_day:
@@ -133,14 +133,21 @@ async def get_report(
         )
 
     # Вычисляем смещение локального времени клиента от UTC
-    # interval_start — это UTC, соответствующий 00:00 в локальном времени клиента
-    # Разница между interval_start и полуночью этого же дня в UTC и есть смещение
+    # interval_start — UTC время, соответствующее 00:00 в локальном времени клиента
+    # Если час > 12, то UTC полночь относится к следующему локальному дню
     utc_midnight = datetime(interval_start.year, interval_start.month, interval_start.day, tzinfo=timezone.utc)
-    tz_offset = interval_start - utc_midnight  # timedelta
+    if interval_start.hour > 12:
+        # Полночь следующего дня UTC — это локальная полночь
+        utc_midnight = utc_midnight + timedelta(days=1)
+    tz_offset = utc_midnight - interval_start   # timedelta
 
     def _to_local(utc_dt: datetime) -> datetime:
         """Переводит UTC datetime в локальное время клиента."""
         return utc_dt + tz_offset
+    
+    def _to_utc(local_dt: datetime) -> datetime:
+        """Переводит локальное время клиента в UTC datetime."""
+        return local_dt - tz_offset
 
     items: list[ReportItem] = []
 
@@ -153,7 +160,8 @@ async def get_report(
             items.append(_build_item(i + 1, DAY_CAPTIONS[i], PLAN_PER_DAY, fact, goal))
 
     elif interval_type == "month":
-        weeks = _weeks_in_interval(interval_start, interval_end)
+        local_start_date = _to_local(interval_start).date()
+        weeks = _weeks_in_interval(interval_start, interval_end, local_start_date)
         for idx, (mon, sun) in enumerate(weeks, 1):
             fact = await _get_fact_minutes(db, user_id, mon, sun, is_goal=False)
             goal = await _get_fact_minutes(db, user_id, mon, sun, is_goal=True)
@@ -163,7 +171,8 @@ async def get_report(
             items.append(_build_item(idx, caption, plan, fact, goal))
 
     elif interval_type == "quarter":
-        weeks = _weeks_in_interval(interval_start, interval_end)
+        local_start_date = _to_local(interval_start).date()
+        weeks = _weeks_in_interval(interval_start, interval_end, local_start_date)
         for idx, (mon, sun) in enumerate(weeks, 1):
             fact = await _get_fact_minutes(db, user_id, mon, sun, is_goal=False)
             goal = await _get_fact_minutes(db, user_id, mon, sun, is_goal=True)
@@ -173,15 +182,21 @@ async def get_report(
             items.append(_build_item(idx, caption, plan, fact, goal))
 
     elif interval_type == "year":
+        year = _to_local(interval_start).year
         for month in range(1, 13):
-            first = datetime(interval_start.year, month, 1, tzinfo=timezone.utc)
+            first = datetime(year, month, 1, tzinfo=timezone.utc)
             if month == 12:
-                last = datetime(interval_start.year, 12, 31, tzinfo=timezone.utc)
+                last = datetime(year, 12, 31, tzinfo=timezone.utc)
             else:
-                last = datetime(interval_start.year, month + 1, 1, tzinfo=timezone.utc) - timedelta(microseconds=1)
+                last = datetime(year, month + 1, 1, tzinfo=timezone.utc) - timedelta(days=1)
 
-            fact = await _get_fact_minutes(db, user_id, first, last, is_goal=False)
-            goal = await _get_fact_minutes(db, user_id, first, last, is_goal=True)
+
+            # logger.info("tz_offset", tz_offset=tz_offset)
+            # logger.info("report_month_local", first=first.isoformat(), last=last.isoformat())
+            # logger.info("report_month_utc", first=_to_utc(first).isoformat(), last=_to_utc(last).isoformat())
+
+            fact = await _get_fact_minutes(db, user_id, _to_utc(first), _to_utc(last), is_goal=False)
+            goal = await _get_fact_minutes(db, user_id, _to_utc(first), _to_utc(last), is_goal=True)
 
             days_in_month = (last - first).days + 1
             plan = PLAN_PER_DAY * days_in_month
