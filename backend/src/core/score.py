@@ -11,9 +11,9 @@ def _calc_urgency(period_seconds: float, elapsed_seconds: float) -> float:
 
     Таблица: [pos, value]
       pos=0.0   → 0.0
-      pos=0.333 → 1.0
-      pos=0.666 → 1.333
-      pos=1.0   → 3.333
+      pos=0.333 → 0.5
+      pos=0.666 → 0.85
+      pos=1.0   → 1.0
     """
     if period_seconds <= 0:
         return 0.0
@@ -22,9 +22,9 @@ def _calc_urgency(period_seconds: float, elapsed_seconds: float) -> float:
 
     TABLE: list[tuple[float, float]] = [
         (0.0, 0.0),
-        (1 / 3, 1.0),
-        (2 / 3, 1.333),
-        (1.0, 3.333),
+        (1 / 3, 0.5),
+        (2 / 3, 0.85),
+        (1.0, 1.0),
     ]
 
     # Поиск интервала
@@ -60,31 +60,23 @@ def compute_score(
     """
     now = datetime.now(timezone.utc)
 
-    # 1) Проактивность (привязка к цели) — * 1.25
-    proactive_raw = 1.25 if task.goal_id else 0.0
+    # 1) Проактивность (привязка к цели)
+    # нет цели → 0, есть цель → 1 (нормировано от 0 до 1)
+    proactive_raw = 1.0 if task.goal_id else 0.0
 
-    # 2) Важность (0-3)
-    importance_raw = float(task.importance)
+    # 2) Важность (0-3) → нормируем до 0-1
+    importance_raw = float(task.importance) / 3.0
 
-    # 3) Последствия (0-3)
-    consequences_raw = float(task.consequences)
+    # 3) Последствия (0-3) → нормируем до 0-1
+    consequences_raw = float(task.consequences) / 3.0
 
-    # 4) Срочность — время до дедлайна
+    # 4) Срочность — время до дедлайна (уже нормировано 0-1 из _calc_urgency)
     period_seconds = (task.finish_date + timedelta(days=1) - task.start_date).total_seconds()
     elapsed_seconds = (now - task.start_date).total_seconds()
     urgency_raw = _calc_urgency(period_seconds, elapsed_seconds)
 
-    # Для коротких задач — повышаем срочность
-    day_seconds = 86400
-    if period_seconds <= 1 * day_seconds:
-        urgency_raw += 1.0
-    elif period_seconds <= 2 * day_seconds:
-        urgency_raw += 0.5
-    elif period_seconds <= 3 * day_seconds:
-        urgency_raw += 0.25
-
     # 5) Количество откладываний (лягушки)
-    refusals_raw = min(task.refusal_count / 100, 1.0)
+    refusals_raw = min(task.refusal_count / 30, 1.0)
 
     # 6) Скорость проекта
     if project_speed is not None and project_speed < 0.9:
