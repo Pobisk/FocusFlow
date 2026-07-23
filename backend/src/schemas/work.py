@@ -20,7 +20,7 @@ class TaskScore(BaseModel):
 
     # 7 пар: характеристика + вес из настроек
     # 1) Проактивность
-    proactive: float = Field(default=0.0, description="Проактивность: 2 если привязана к цели, иначе 0")
+    proactive: float = Field(default=0.0, description="Проактивность: 1 если привязана к цели, иначе 0")
     w_proactive: float = Field(default=0.0, description="Вес проактивности из настроек")
 
     # 2) Важность
