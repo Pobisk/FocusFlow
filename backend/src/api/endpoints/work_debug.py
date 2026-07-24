@@ -50,13 +50,18 @@ async def get_work_debug(
     if not settings:
         return []
 
-    # ── Все активные задачи на сегодня (без встреч) ──
-    stmt = select(Task).where(
-        Task.user_id == user_id,
-        Task.status_id == TaskStatus.ACTIVE.value,
-        Task.finish_date >= local_date,
-        Task.start_date <= local_date,
-        Task.is_appointment == False,
+    # ── Все активные задачи на сегодня по фокусным сферам (без встреч) ──
+    stmt = (
+        select(Task)
+        .join(Sphere, Task.sphere_id == Sphere.id)
+        .where(
+            Task.user_id == user_id,
+            Task.status_id == TaskStatus.ACTIVE.value,
+            Task.finish_date >= local_date,
+            Task.start_date <= local_date,
+            Task.is_appointment == False,
+            Sphere.is_focused == True,
+        )
     )
     result = await db.execute(stmt)
     candidates = result.scalars().all()

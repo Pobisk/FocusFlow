@@ -115,11 +115,18 @@ async def _run_selection_algorithm(
     current_moment = datetime.now(timezone.utc)
 
     # ── 1. Все активные задачи на сегодня ─────────────
-    stmt = select(Task).where(
-        Task.user_id == user_id,
-        Task.status_id == TaskStatus.ACTIVE.value,
-        Task.finish_date >= local_date,
-        Task.start_date <= local_date,
+    # Если задача — встреча (is_appointment = true), берём всегда.
+    # Иначе — только если сфера в фокусе (is_focused = true).
+    stmt = (
+        select(Task)
+        .join(Sphere, Task.sphere_id == Sphere.id)
+        .where(
+            Task.user_id == user_id,
+            Task.status_id == TaskStatus.ACTIVE.value,
+            Task.finish_date >= local_date,
+            Task.start_date <= local_date,
+            (Task.is_appointment == True) | (Sphere.is_focused == True),
+        )
     )
     result = await db.execute(stmt)
     all_tasks = result.scalars().all()
