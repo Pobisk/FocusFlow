@@ -139,6 +139,7 @@ export interface Sphere {
   name: string
   order: number
   is_active: boolean
+  is_focused: boolean
   satisfaction: number
   created_at: string
   updated_at: string
@@ -149,6 +150,7 @@ export interface SphereCreate {
   name: string
   order?: number
   satisfaction?: number
+  is_focused?: boolean
 }
 
 export interface SphereUpdate {
@@ -156,6 +158,7 @@ export interface SphereUpdate {
   name?: string
   order?: number
   is_active?: boolean
+  is_focused?: boolean
   satisfaction?: number
 }
 
@@ -181,6 +184,13 @@ export async function updateSphere(sphereId: string, data: SphereUpdate): Promis
 export async function deleteSphere(sphereId: string): Promise<void> {
   await apiFetch<void>(`/spheres/${sphereId}`, {
     method: 'DELETE',
+  })
+}
+
+export async function setSpheresFocus(isFocused: boolean): Promise<void> {
+  await apiFetch<void>('/spheres/focus', {
+    method: 'PUT',
+    body: JSON.stringify({ is_focused: isFocused }),
   })
 }
 

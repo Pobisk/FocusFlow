@@ -6,6 +6,7 @@ import {
   createSphere,
   updateSphere,
   deleteSphere,
+  setSpheresFocus,
   type Sphere,
   type SphereCreate,
   type SphereUpdate,
@@ -31,10 +32,11 @@ function SphereFormModal({
   isSaving,
 }: SphereFormModalProps) {
     const [code, setCode] = useState(sphere?.code ?? '')
-  const [name, setName] = useState(sphere?.name ?? '')
-  const [order, setOrder] = useState(sphere?.order ?? 0)
-  const [satisfaction, setSatisfaction] = useState(sphere?.satisfaction ?? 3)
-  const [isActive, setIsActive] = useState(sphere?.is_active ?? true)
+    const [name, setName] = useState(sphere?.name ?? '')
+    const [order, setOrder] = useState(sphere?.order ?? 0)
+    const [satisfaction, setSatisfaction] = useState(sphere?.satisfaction ?? 3)
+    const [isActive, setIsActive] = useState(sphere?.is_active ?? true)
+    const [isFocused, setIsFocused] = useState(sphere?.is_focused ?? true)
 
   // Синхронизация состояния формы при открытии/смене редактируемой сферы
   const prevSphereRef = useRef(sphere)
@@ -43,11 +45,12 @@ function SphereFormModal({
     const sphereChanged = sphere !== prevSphereRef.current
     const justOpened = open && !prevOpenRef.current
     if (justOpened || sphereChanged) {
-      setCode(sphere?.code ?? '')
+            setCode(sphere?.code ?? '')
       setName(sphere?.name ?? '')
       setOrder(sphere?.order ?? 0)
       setSatisfaction(sphere?.satisfaction ?? 3)
       setIsActive(sphere?.is_active ?? true)
+      setIsFocused(sphere?.is_focused ?? true)
     }
     prevSphereRef.current = sphere
     prevOpenRef.current = open
@@ -55,10 +58,10 @@ function SphereFormModal({
 
   if (!open) return null
 
-  const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
         if (mode === 'create') {
-      onSave({ code, name, order, satisfaction } as SphereCreate)
+      onSave({ code, name, order, satisfaction, is_focused: isFocused } as SphereCreate)
     } else {
       const data: SphereUpdate = {}
       if (code !== sphere?.code) data.code = code
@@ -66,6 +69,7 @@ function SphereFormModal({
       if (order !== sphere?.order) data.order = order
       if (satisfaction !== sphere?.satisfaction) data.satisfaction = satisfaction
       if (isActive !== sphere?.is_active) data.is_active = isActive
+      if (isFocused !== sphere?.is_focused) data.is_focused = isFocused
       onSave(data)
     }
   }
@@ -132,15 +136,26 @@ function SphereFormModal({
               <span>5</span>
             </div>
           </div>
-          <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
-              className="rounded border-gray-300"
-            />
-            Активна
-          </label>
+                    <div className="flex items-center justify-between">
+            <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              Активна
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isFocused}
+                onChange={(e) => setIsFocused(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              Фокус
+            </label>
+          </div>
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
@@ -215,7 +230,8 @@ function ConfirmDeleteModal({
 export function SpheresPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [showAll, setShowAll] = useState(false)
+    const [showAll, setShowAll] = useState(false)
+  const [focused, setFocused] = useState(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editingSphere, setEditingSphere] = useState<Sphere | undefined>()
   const [deletingSphere, setDeletingSphere] = useState<Sphere | null>(null)
@@ -246,12 +262,20 @@ export function SpheresPage() {
     },
   })
 
-  // Мутация удаления
+    // Мутация удаления
   const deleteMutation = useMutation({
     mutationFn: deleteSphere,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['spheres'] })
       setDeletingSphere(null)
+    },
+  })
+
+  // Мутация массового фокуса
+  const focusMutation = useMutation({
+    mutationFn: setSpheresFocus,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['spheres'] })
     },
   })
 
@@ -301,7 +325,20 @@ export function SpheresPage() {
               Управляйте своими сферами жизни
             </p>
                     </div>
-          <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3">
+            <label className="inline-flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={focused}
+                onChange={(e) => {
+                  const newFocused = e.target.checked
+                  setFocused(newFocused)
+                  focusMutation.mutate(newFocused)
+                }}
+                className="rounded border-gray-300"
+              />
+              Фокус
+            </label>
             <label className="inline-flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
               <input
                 type="checkbox"
@@ -339,23 +376,24 @@ export function SpheresPage() {
               <table className="w-full text-sm bg-white rounded-xl shadow-sm border">
                 <thead>
                   <tr className="border-b bg-gray-50">
-                    <th className="text-center px-4 py-3 font-medium text-gray-700 w-14">Код</th>
+                                        <th className="text-center px-4 py-3 font-medium text-gray-700 w-14">Код</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-700">Название</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700 w-16">Фокус</th>
                     <th className="text-center px-4 py-3 font-medium text-gray-700 w-20">Порядок</th>
                     <th className="text-center px-4 py-3 font-medium text-gray-700 w-28">Удовл.</th>
-                    <th className="text-center px-4 py-3 font-medium text-gray-700 w-16">Активна</th>
+                                        <th className="text-center px-4 py-3 font-medium text-gray-700 w-16">Активна</th>
                   </tr>
                 </thead>
                 <tbody>
                   {spheres.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-12 text-gray-400">
+                      <td colSpan={6} className="text-center py-12 text-gray-400">
                         Сферы пока не добавлены. Нажмите "+ Добавить сферу"
                       </td>
                     </tr>
                   ) : (
                     spheres.map((sphere) => (
-                      <tr key={sphere.id} className="border-b last:border-b-0 hover:bg-gray-50 transition">
+                                            <tr key={sphere.id} className="border-b last:border-b-0 hover:bg-gray-50 transition">
                         <td className="px-4 py-3 text-center font-mono text-gray-600">{sphere.code}</td>
                         <td className="px-4 py-3">
                           <button
@@ -364,6 +402,13 @@ export function SpheresPage() {
                           >
                             {sphere.name}
                           </button>
+                        </td>
+                                                <td className="px-4 py-3 text-center">
+                          {sphere.is_focused ? (
+                            <span className="text-green-500 text-lg">✓</span>
+                          ) : (
+                            <span className="text-red-400 text-lg">✗</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-center text-gray-700">{sphere.order}</td>
                         <td className="px-4 py-3 text-center text-gray-700 tabular-nums">{sphere.satisfaction.toFixed(1)}</td>
@@ -406,8 +451,9 @@ export function SpheresPage() {
                         <span className="text-red-400 shrink-0">✗</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                                            <span>Порядок: {sphere.order}</span>
+                                        <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                      {sphere.is_focused ? <span className="text-green-500 text-lg">✓</span> : <span className="text-red-400 text-lg">✗</span>}
+                      <span>Порядок: {sphere.order}</span>
                       <span>Удовлетворенность: {sphere.satisfaction.toFixed(1)}</span>
                     </div>
                   </div>

@@ -12,6 +12,7 @@ from schemas.sphere import (
     SphereUpdate,
     SphereSatisfactionHistoryRead,
 )
+from pydantic import BaseModel
 from core.auth import get_current_user_id
 from uuid import UUID
 
@@ -88,6 +89,33 @@ async def create_sphere(
     db.add(history_entry)
 
     return sphere
+
+
+class SetFocusRequest(BaseModel):
+    """Запрос на массовое изменение is_focused."""
+    is_focused: bool
+
+
+@router.put("/focus", status_code=status.HTTP_204_NO_CONTENT)
+async def set_all_spheres_focus(
+    payload: SetFocusRequest,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """
+    Установить значение is_focused для всех сфер текущего пользователя.
+
+    🔐 Требует авторизацию (JWT Bearer token)
+    🔄 Обновляет все сферы пользователя
+    """
+    statement = select(Sphere).where(Sphere.user_id == user_id)
+    result = await db.execute(statement)
+    spheres = result.scalars().all()
+
+    for sphere in spheres:
+        sphere.is_focused = payload.is_focused
+
+    return None
 
 
 @router.put("/{sphere_id}", response_model=SphereRead, status_code=status.HTTP_200_OK)

@@ -47,6 +47,13 @@ class Sphere(UserOwnedModel, table=True):
         description="Оценка удовлетворённости сферой от 1.0 до 5.0",
     )
 
+    # 🎯 Признак фокуса (для фокусировки на сфере)
+    is_focused: bool = Field(
+        default=True,
+        nullable=False,
+        description="Признак фокуса на сфере",
+    )
+
     __table_args__ = (
         Index("ix_spheres_user_id_code", "user_id", "code", unique=True),
     )

@@ -1,0 +1,29 @@
+1) для сущности "сфера" добавляем поле is_focused, тип: bool, not null
+
+2) соответственно переделываем:
+- сущность
+\\wsl.localhost\Ubuntu\home\pobisk\projects\FocusFlow\backend\src\models\sphere.py
+- схему
+\\wsl.localhost\Ubuntu\home\pobisk\projects\FocusFlow\backend\src\schemas\sphere.py
+- endpoint
+\\wsl.localhost\Ubuntu\home\pobisk\projects\FocusFlow\backend\src\api\endpoints\sphere.py
+
+3) в endpoint
+\\wsl.localhost\Ubuntu\home\pobisk\projects\FocusFlow\backend\src\api\endpoints\sphere.py
+добавляем метод (POST или PUT) для массового изменения поля is_focused
+вход: bool is_focused
+выход - ничего
+метод проставляет переданное значение is_focused для всех сфер текущего пользователя
+
+4) делаем миграцию
+
+5) на фронте переделываем экран
+\\wsl.localhost\Ubuntu\home\pobisk\projects\FocusFlow\frontend\src\pages\SpheresPage.tsx
+
+добавляем отображение поля is_focused точно также как отображение поля is_active
+- в таблице: новый столбик "Фокус" перед столбцом "Порядок"
+- в карточке: также как для поля is_active, слева от "Порядок"
+- в диалоге: чекбокс "Фокус", в той же строчке, что и чекбокс "Активна", но прижатый к правому краю диалога
+
+6) на фронте, в шапке страницы, слева от чекбокса "Все", отобразить чекбокс "Фокус" (по умолчанию выключенный)
+при клике на чекбокс "Фокус" - вызвать новый метод (см. п.3), на вход передать значение чекбокса "Фокус", затем перезагрузить список сфер

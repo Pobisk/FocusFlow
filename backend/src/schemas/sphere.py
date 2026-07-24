@@ -14,6 +14,7 @@ class SphereRead(BaseModel):
     order: int
     is_active: bool
     satisfaction: float
+    is_focused: bool
     created_at: datetime
     updated_at: datetime
 
@@ -31,6 +32,7 @@ class SphereCreate(BaseModel):
     name: str = Field(..., max_length=200)
     order: int = Field(default=0)
     satisfaction: float = Field(default=3.0, ge=1.0, le=5.0)
+    is_focused: bool = Field(default=True)
 
 
 class SphereUpdate(BaseModel):
@@ -41,6 +43,7 @@ class SphereUpdate(BaseModel):
     order: int | None = None
     is_active: bool | None = None
     satisfaction: float | None = Field(default=None, ge=1.0, le=5.0)
+    is_focused: bool | None = None
 
 
 class SphereSatisfactionHistoryRead(BaseModel):
